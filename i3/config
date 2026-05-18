@@ -1,0 +1,215 @@
+# =============================================================================
+# i3 config — Tokyo Night Dark
+# Deploy: cp -r ~/.config/i3/config ~/.config/i3/config.bak && cp i3/config ~/.config/i3/config
+# =============================================================================
+
+# Mod key: Super
+set $mod Mod4
+
+# Terminal and launcher
+set $term     alacritty
+set $menu     rofi -show drun -show-icons
+
+# -----------------------------------------------------------------------------
+# Tokyo Night Dark palette
+# -----------------------------------------------------------------------------
+set $tn_bg       #1a1b26
+set $tn_bg_dark  #16161e
+set $tn_bg_hi    #292e42
+set $tn_fg       #c0caf5
+set $tn_fg_dark  #a9b1d6
+set $tn_comment  #565f89
+set $tn_blue     #7aa2f7
+set $tn_cyan     #7dcfff
+set $tn_magenta  #bb9af7
+set $tn_orange   #ff9e64
+set $tn_yellow   #e0af68
+set $tn_green    #9ece6a
+set $tn_red      #f7768e
+
+# -----------------------------------------------------------------------------
+# Window appearance
+# client.CLASS          border       background   text         indicator    child_border
+# -----------------------------------------------------------------------------
+client.focused          $tn_blue     $tn_bg_hi    $tn_fg       $tn_blue     $tn_blue
+client.focused_inactive $tn_bg_hi    $tn_bg       $tn_fg_dark  $tn_bg_hi    $tn_bg_hi
+client.unfocused        $tn_bg_dark  $tn_bg_dark  $tn_comment  $tn_bg_dark  $tn_bg_dark
+client.urgent           $tn_red      $tn_red      $tn_fg       $tn_red      $tn_red
+client.placeholder      $tn_bg_dark  $tn_bg_dark  $tn_comment  $tn_bg_dark  $tn_bg_dark
+client.background       $tn_bg_dark
+
+# Font
+font pango:JetBrains Mono 10
+
+# Borders — 2px, hide on single-window workspaces
+default_border pixel 2
+default_floating_border pixel 2
+hide_edge_borders smart
+
+# Gaps (requires i3 >= 4.22)
+gaps inner 8
+gaps outer 4
+
+# -----------------------------------------------------------------------------
+# Autostart
+# -----------------------------------------------------------------------------
+exec --no-startup-id picom --backend glx -b
+exec --no-startup-id dunst
+exec --no-startup-id feh --no-fehbg --bg-fill ~/Pictures/wallpaper.jpg
+exec --no-startup-id xsettingsd
+# Polkit authentication agent — uncomment whichever path exists on your machine.
+# Check with: ls /usr/lib/policykit-1-gnome/ or ls /usr/lib/x86_64-linux-gnu/libexec/
+# Kubuntu ships the KDE agent (polkit-kde-agent-1 package):
+exec --no-startup-id /usr/lib/x86_64-linux-gnu/libexec/polkit-kde-authentication-agent-1
+# GNOME agent (policykit-1-gnome package) — alternative:
+# exec --no-startup-id /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1
+
+# -----------------------------------------------------------------------------
+# Key bindings — applications
+# -----------------------------------------------------------------------------
+bindsym $mod+Return       exec $term
+bindsym $mod+d            exec $menu
+bindsym $mod+Shift+q      kill
+
+# Screenshot (requires scrot)
+bindsym Print             exec scrot '%Y-%m-%d_%H-%M-%S.png' -e 'mv $f ~/Pictures/screenshots/'
+bindsym $mod+Print        exec scrot -s '%Y-%m-%d_%H-%M-%S.png' -e 'mv $f ~/Pictures/screenshots/'
+
+# Lock screen
+bindsym $mod+Shift+x      exec ~/.config/i3/lock.sh
+
+# Volume (pulseaudio/pipewire)
+bindsym XF86AudioRaiseVolume  exec pactl set-sink-volume @DEFAULT_SINK@ +5%
+bindsym XF86AudioLowerVolume  exec pactl set-sink-volume @DEFAULT_SINK@ -5%
+bindsym XF86AudioMute         exec pactl set-sink-mute @DEFAULT_SINK@ toggle
+
+# Brightness (requires brightnessctl or xbacklight)
+bindsym XF86MonBrightnessUp   exec brightnessctl set +5%
+bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
+
+# -----------------------------------------------------------------------------
+# Key bindings — i3 management
+# -----------------------------------------------------------------------------
+bindsym $mod+Shift+c  reload
+bindsym $mod+Shift+r  restart
+bindsym $mod+Shift+e  exec i3-msg exit
+
+# Focus (vim-style + arrows)
+bindsym $mod+h      focus left
+bindsym $mod+j      focus down
+bindsym $mod+k      focus up
+bindsym $mod+l      focus right
+bindsym $mod+Left   focus left
+bindsym $mod+Down   focus down
+bindsym $mod+Up     focus up
+bindsym $mod+Right  focus right
+
+# Move (vim-style + arrows)
+bindsym $mod+Shift+h      move left
+bindsym $mod+Shift+j      move down
+bindsym $mod+Shift+k      move up
+bindsym $mod+Shift+l      move right
+bindsym $mod+Shift+Left   move left
+bindsym $mod+Shift+Down   move down
+bindsym $mod+Shift+Up     move up
+bindsym $mod+Shift+Right  move right
+
+# Split orientation
+bindsym $mod+b  split h
+bindsym $mod+v  split v
+
+# Fullscreen
+bindsym $mod+f  fullscreen toggle
+
+# Layout
+bindsym $mod+s  layout stacking
+bindsym $mod+w  layout tabbed
+bindsym $mod+e  layout toggle split
+
+# Floating
+bindsym $mod+Shift+space  floating toggle
+bindsym $mod+space        focus mode_toggle
+bindsym $mod+a            focus parent
+
+# Drag floating windows with mouse
+floating_modifier $mod
+
+# -----------------------------------------------------------------------------
+# Workspaces
+# -----------------------------------------------------------------------------
+set $ws1  "1"
+set $ws2  "2"
+set $ws3  "3"
+set $ws4  "4"
+set $ws5  "5"
+set $ws6  "6"
+set $ws7  "7"
+set $ws8  "8"
+set $ws9  "9"
+set $ws10 "10"
+
+bindsym $mod+1  workspace number $ws1
+bindsym $mod+2  workspace number $ws2
+bindsym $mod+3  workspace number $ws3
+bindsym $mod+4  workspace number $ws4
+bindsym $mod+5  workspace number $ws5
+bindsym $mod+6  workspace number $ws6
+bindsym $mod+7  workspace number $ws7
+bindsym $mod+8  workspace number $ws8
+bindsym $mod+9  workspace number $ws9
+bindsym $mod+0  workspace number $ws10
+
+bindsym $mod+Shift+1  move container to workspace number $ws1
+bindsym $mod+Shift+2  move container to workspace number $ws2
+bindsym $mod+Shift+3  move container to workspace number $ws3
+bindsym $mod+Shift+4  move container to workspace number $ws4
+bindsym $mod+Shift+5  move container to workspace number $ws5
+bindsym $mod+Shift+6  move container to workspace number $ws6
+bindsym $mod+Shift+7  move container to workspace number $ws7
+bindsym $mod+Shift+8  move container to workspace number $ws8
+bindsym $mod+Shift+9  move container to workspace number $ws9
+bindsym $mod+Shift+0  move container to workspace number $ws10
+
+# -----------------------------------------------------------------------------
+# Resize mode
+# -----------------------------------------------------------------------------
+mode "resize" {
+    bindsym h      resize shrink width  10 px or 10 ppt
+    bindsym j      resize grow   height 10 px or 10 ppt
+    bindsym k      resize shrink height 10 px or 10 ppt
+    bindsym l      resize grow   width  10 px or 10 ppt
+    bindsym Left   resize shrink width  10 px or 10 ppt
+    bindsym Down   resize grow   height 10 px or 10 ppt
+    bindsym Up     resize shrink height 10 px or 10 ppt
+    bindsym Right  resize grow   width  10 px or 10 ppt
+
+    bindsym Return  mode "default"
+    bindsym Escape  mode "default"
+    bindsym $mod+r  mode "default"
+}
+bindsym $mod+r  mode "resize"
+
+# -----------------------------------------------------------------------------
+# i3bar — full-width bottom bar, Tokyo Night Dark
+# -----------------------------------------------------------------------------
+bar {
+    position         bottom
+    status_command   i3status --config ~/.config/i3/i3status.conf
+    tray_output      primary
+    separator_symbol " | "
+
+    font pango:JetBrains Mono 10
+
+    colors {
+        background $tn_bg_dark
+        statusline $tn_fg
+        separator  $tn_comment
+
+        #                   border       background   text
+        focused_workspace   $tn_blue     $tn_blue     $tn_bg_dark
+        active_workspace    $tn_bg_hi    $tn_bg_hi    $tn_fg
+        inactive_workspace  $tn_bg_dark  $tn_bg_dark  $tn_comment
+        urgent_workspace    $tn_red      $tn_red      $tn_bg_dark
+        binding_mode        $tn_magenta  $tn_magenta  $tn_bg_dark
+    }
+}

@@ -1,0 +1,157 @@
+/* =============================================================================
+   Rofi — Tokyo Night Dark, spotlight-style launcher
+   Deploy: mkdir -p ~/.config/rofi && cp rofi/config.rasi ~/.config/rofi/config.rasi
+   ============================================================================= */
+
+configuration {
+    modi:           "drun,run,window";
+    show-icons:     true;
+    icon-theme:     "Papirus-Dark";
+    drun-display-format: "{name}";
+    display-drun:   "";
+    display-run:    "";
+    display-window: "";
+    font:           "JetBrains Mono 12";
+    /* Fallback if Nerd Font not installed: */
+    /* font: "JetBrains Mono 12"; */
+}
+
+/* =============================================================================
+   Tokyo Night Dark palette
+   ============================================================================= */
+* {
+    bg:         #1a1b26;
+    bg-dark:    #16161e;
+    bg-hi:      #292e42;
+    fg:         #c0caf5;
+    fg-dark:    #a9b1d6;
+    comment:    #565f89;
+    blue:       #7aa2f7;
+    cyan:       #7dcfff;
+    magenta:    #bb9af7;
+    green:      #9ece6a;
+    red:        #f7768e;
+    orange:     #ff9e64;
+    yellow:     #e0af68;
+    transparent: #00000000;
+
+    /* Applied roles */
+    background-color:   @transparent;
+    text-color:         @fg;
+}
+
+/* =============================================================================
+   Window — centred, fixed width, no title bar
+   ============================================================================= */
+window {
+    location:           center;
+    anchor:             center;
+    width:              600px;
+    border-radius:      8px;
+    border:             2px solid @blue;
+    background-color:   @bg-dark;
+    padding:            0;
+}
+
+/* =============================================================================
+   Layout
+   ============================================================================= */
+mainbox {
+    background-color: @transparent;
+    children:         [ inputbar, listview ];
+    spacing:          0;
+    padding:          0;
+}
+
+/* =============================================================================
+   Search bar
+   ============================================================================= */
+inputbar {
+    background-color: @bg;
+    border-radius:    8px 8px 0 0;
+    padding:          14px 16px;
+    spacing:          10px;
+    children:         [ prompt, entry ];
+}
+
+prompt {
+    background-color: @transparent;
+    text-color:       @blue;
+    font:             "JetBrains Mono Bold 12";
+}
+
+entry {
+    background-color: @transparent;
+    text-color:       @fg;
+    placeholder:      "Search…";
+    placeholder-color: @comment;
+    cursor:           text;
+}
+
+/* =============================================================================
+   Results list
+   ============================================================================= */
+listview {
+    background-color: @transparent;
+    padding:          8px 0;
+    spacing:          0;
+    lines:            8;
+    fixed-height:     true;
+    scrollbar:        false;
+    border:           1px 0 0 0 solid;
+    border-color:     @bg-hi;
+}
+
+element {
+    background-color: @transparent;
+    padding:          10px 16px;
+    spacing:          10px;
+    border-radius:    0;
+    orientation:      horizontal;
+    children:         [ element-icon, element-text ];
+}
+
+element selected {
+    background-color: @bg-hi;
+    border-radius:    0;
+    border:           0 0 0 2px solid;
+    border-color:     @blue;
+}
+
+element-icon {
+    background-color: @transparent;
+    size:             20px;
+}
+
+element-text {
+    background-color: @transparent;
+    text-color:       @fg-dark;
+    vertical-align:   0.5;
+}
+
+element selected element-text {
+    text-color: @fg;
+}
+
+/* =============================================================================
+   Mode switcher (shown when using multiple modi)
+   ============================================================================= */
+mode-switcher {
+    background-color: @bg-dark;
+    border:           1px 0 0 0 solid;
+    border-color:     @bg-hi;
+    padding:          6px 16px;
+    spacing:          6px;
+}
+
+button {
+    background-color: @transparent;
+    text-color:       @comment;
+    border-radius:    4px;
+    padding:          4px 10px;
+}
+
+button selected {
+    background-color: @bg-hi;
+    text-color:       @blue;
+}
