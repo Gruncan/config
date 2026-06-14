@@ -1,10 +1,15 @@
 # Desktop Rice Setup Guide
-**Target:** Kubuntu 24.04 · KDE Plasma · X11  
-**Style:** Omarchy-inspired · Tokyo Night Dark · i3 + i3bar
+**Target:** Kubuntu 24.04 · KDE Plasma · Wayland  
+**Style:** Omarchy-inspired · Tokyo Night Dark · Hyprland + Waybar
 
 Work through each step in order. Every step backs up the existing file before
 touching it, and every step has a one-line revert. Stop at any point — nothing
 done so far will break anything that came before.
+
+**KDE Plasma is never touched.** At any point you can log out and select
+**Plasma** in the SDDM session menu to return to your original KDE desktop.
+
+> The previous X11/i3 version of this tutorial is preserved in `ARCHIVE_X11/SETUP_X11.md`.
 
 ---
 
@@ -16,42 +21,53 @@ git clone <your-repo-url> ~/Development/Ricing
 # or just scp/copy the folder across
 ```
 
-Confirm i3 is installed:
-```bash
-i3 --version
-```
-If not: `sudo apt install i3`
+Confirm you are booted into Kubuntu with KDE Plasma working normally.
+Hyprland will be added as a second session — KDE remains intact throughout.
 
 ---
 
 ## Step 0 — Packages
 
-Install everything in one go. If a package is missing from your mirror, see
-`SOURCES.md` for the build-from-source instructions for that specific package.
+Install all Wayland-native tools and build dependencies in one command.
+If a package is missing from your mirror, see `SOURCES.md`.
 
 ```bash
 sudo apt install \
-    alacritty \
-    rofi \
-    picom \
-    dunst \
-    feh \
-    scrot \
-    i3status \
-    i3lock \
-    brightnessctl \
-    papirus-icon-theme \
-    fonts-jetbrains-mono \
-    libnotify-bin \
-    playerctl
+    meson ninja-build cmake pkg-config git \
+    libwayland-dev wayland-protocols libxkbcommon-dev \
+    libpixman-1-dev libcairo2-dev libpango1.0-dev \
+    libdrm-dev libgbm-dev libgl-dev libegl-dev libegl1-mesa-dev \
+    libinput-dev libudev-dev libgles2-mesa-dev \
+    libvulkan-dev glslang-tools vulkan-validationlayers-dev \
+    libseat-dev libdisplay-info-dev hwdata \
+    libxcb-dri3-dev libxcb-composite0-dev libxcb-res0-dev \
+    libxcb-icccm4-dev libxcb-ewmh-dev libx11-xcb-dev \
+    libxcb-xinput-dev libxcb-xfixes0-dev libxcb-shm0-dev \
+    libdecor-0-dev libtoml++3-dev libre2-dev \
+    libwebp-dev libjpeg-dev libpng-dev \
+    waybar wofi swaylock swaybg grim slurp wl-clipboard \
+    brightnessctl dunst alacritty \
+    pipewire wireplumber libpipewire-0.3-dev \
+    xdg-desktop-portal xdg-desktop-portal-wlr \
+    papirus-icon-theme fonts-jetbrains-mono libnotify-bin playerctl \
+    qt5-style-kvantum qt5-style-kvantum-themes \
+    capitaine-cursors \
+    ripgrep fd-find fzf unzip \
+    clang clangd bear \
+    policykit-1-gnome network-manager-gnome pavucontrol \
+    xwayland
 ```
 
-Check which packages were skipped by your mirror:
+Check what your mirror skipped:
 ```bash
-for p in alacritty rofi picom dunst feh scrot i3status i3lock \
-          brightnessctl papirus-icon-theme fonts-jetbrains-mono \
-          libnotify-bin playerctl; do
-    dpkg -s "$p" &>/dev/null && echo "OK  $p" || echo "MISSING  $p"
+for p in waybar wofi swaylock swaybg grim slurp wl-clipboard \
+          brightnessctl dunst alacritty pipewire wireplumber \
+          xdg-desktop-portal xdg-desktop-portal-wlr \
+          papirus-icon-theme fonts-jetbrains-mono libnotify-bin playerctl \
+          qt5-style-kvantum capitaine-cursors \
+          ripgrep fd-find fzf clang clangd bear \
+          policykit-1-gnome network-manager-gnome pavucontrol xwayland; do
+    dpkg -s "$p" &>/dev/null && echo "OK      $p" || echo "MISSING $p"
 done
 ```
 
@@ -63,188 +79,28 @@ For any `MISSING` entry, refer to `SOURCES.md`.
 
 ## Step 0b — Version checks
 
-Run these before deploying configs — some versions need small config adjustments.
-
 ```bash
+waybar  --version     # Any version is fine
+dunst   --version     # Need >= 1.9 for Wayland layer support
 alacritty --version   # Need >= 0.12 for TOML config
-picom --version       # Need >= 8.0  for corner-radius
-dunst --version       # Need >= 1.9  for origin/offset syntax
-i3 --version          # Need >= 4.22 for built-in gaps
-i3status --version    # Any version is fine
-```
-
-### If alacritty < 0.12
-The `alacritty.toml` config will be ignored. You need YAML format instead.
-Run this on the Kubuntu machine and share the output — I'll generate an
-`alacritty.yml` equivalent.
-
-### If picom < 8.0
-Comment out the corner-radius block before deploying:
-```bash
-# In picom/picom.conf, comment out:
-# corner-radius = 6;
-# rounded-corners-exclude = { ... };
+swaylock  --version   # Any version is fine
 ```
 
 ### If dunst < 1.9
-Replace the position block in `dunst/dunstrc` with the legacy format:
+Replace the `origin`/`offset` position block with the legacy format:
 ```
 geometry = "360x5-20+45"
 ```
-and remove the `origin`, `offset`, `width`, `height`, `gap_size` lines.
+Remove the `origin`, `offset`, `width`, `height`, `gap_size` lines.
 
-### If i3 < 4.22
-Comment out the gaps lines in `i3/config`:
-```
-# gaps inner 8
-# gaps outer 4
-```
+### If alacritty < 0.12
+The `alacritty.toml` config will be ignored. YAML format is required instead.
+Share the output of `alacritty --version` and I'll generate an
+`alacritty.yml` equivalent.
 
 ---
 
-## Step 1 — i3 config
-
-**What this does:** Replaces your i3 window manager config. Sets Tokyo Night
-colours, keybindings, gaps, and the i3bar. Only affects the i3 session —
-your KDE Plasma session is completely untouched.
-
-### Note on the KDE menu bar (File · Edit · View)
-This is one of the things that goes away automatically. Alacritty has zero
-window chrome — no menu bar, no toolbar, no tab strip, no title bar buttons.
-It is a pure GPU-rendered canvas. Once you are in i3 using Alacritty, those
-bars simply do not exist. If you ever open a KDE app (Dolphin, etc.) from
-within i3 and want to hide its menu bar temporarily: `Ctrl+M` toggles it in
-most KDE apps.
-
-### Check polkit agent path first
-
-The i3 config starts a polkit authentication agent (needed for sudo dialogs in GUI apps).
-Kubuntu ships the KDE agent — verify the path exists before deploying:
-
-```bash
-ls /usr/lib/x86_64-linux-gnu/libexec/polkit-kde-authentication-agent-1
-```
-
-If that file is missing, check for the GNOME one instead:
-```bash
-ls /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1
-# If found, edit i3/config and swap the commented lines in the polkit block
-```
-
-### Backup
-```bash
-cp -r ~/.config/i3 ~/.config/i3.bak
-```
-
-### Deploy
-```bash
-mkdir -p ~/.config/i3
-cp ~/Development/Ricing/i3/config         ~/.config/i3/config
-cp ~/Development/Ricing/i3/i3status.conf  ~/.config/i3/i3status.conf
-```
-
-### Verify (without logging out)
-```bash
-i3 -C ~/.config/i3/config
-```
-Exit code 0 = config is valid. Any errors will print to stdout.
-
-### Apply
-Log out of KDE Plasma. At the SDDM login screen, click the session selector
-(bottom-left or top-right depending on your SDDM theme) and choose **i3**.
-Log in.
-
-`Super+Return` → opens alacritty  
-`Super+d` → opens rofi launcher  
-`Super+Shift+e` → exit i3 (returns to SDDM)
-
-### Revert
-```bash
-cp -r ~/.config/i3.bak ~/.config/i3
-# Then restart i3: Super+Shift+r, or log out and back in
-```
-
----
-
-## Step 2 — i3status (bar content)
-
-**What this does:** Configures what appears in the right side of the i3bar:
-disk space, CPU, memory, network, battery, volume, clock.
-
-Already deployed with Step 1. This step is for adjusting it to your hardware.
-
-### Customise for your machine
-
-**No battery (desktop):** Open `~/.config/i3/i3status.conf` and comment out:
-```
-# order += "battery all"
-# battery all { ... }
-```
-
-**No wireless:** Comment out:
-```
-# order += "wireless _first_"
-# wireless _first_ { ... }
-```
-
-**PipeWire instead of ALSA:** The `volume master` block may not work. Replace with:
-```
-order += "tztime local"
-# remove the volume block entirely
-```
-Volume will still work via the media keys in i3/config — just won't show in the bar.
-
-### Reload bar without logging out
-```bash
-i3-msg reload
-```
-
-### Revert
-```bash
-cp ~/Development/Ricing/i3/i3status.conf ~/.config/i3/i3status.conf
-i3-msg reload
-```
-
----
-
-## Step 3 — Alacritty (terminal)
-
-**What this does:** Gives alacritty Tokyo Night Dark colours, JetBrains Mono
-font at 12pt, subtle transparency (96%), block cursor with blink, and sane
-keyboard shortcuts. No menu bar — that is the entire point of alacritty.
-
-### Backup
-```bash
-cp -r ~/.config/alacritty ~/.config/alacritty.bak 2>/dev/null || true
-```
-
-### Deploy
-```bash
-mkdir -p ~/.config/alacritty
-cp ~/Development/Ricing/alacritty/alacritty.toml ~/.config/alacritty/alacritty.toml
-```
-
-### Verify
-Alacritty hot-reloads its config — open a terminal and the colours change
-immediately. No restart needed.
-
-If the terminal looks wrong (wrong colours, font fallback boxes for icons):
-- Wrong colours → confirm `alacritty --version` is ≥ 0.12
-- Box characters instead of icons → Nerd Font not installed (see Step 0c below)
-
-### Font fallback
-If JetBrainsMono Nerd Font is not yet installed, the config will fall back
-gracefully to whatever monospace font is available. Icons in the bar will show
-as □ but the terminal itself will work fine.
-
-### Revert
-```bash
-cp -r ~/.config/alacritty.bak ~/.config/alacritty
-```
-
----
-
-## Step 0c — Nerd Font (do this if you see □ characters)
+## Step 0c — Nerd Font (do this if you see □ characters in the bar/prompt)
 
 The apt package `fonts-jetbrains-mono` does **not** include the icon glyphs.
 Install the Nerd Font variant manually:
@@ -263,140 +119,464 @@ Verify:
 fc-list | grep -i "JetBrainsMono Nerd"
 ```
 
-Alacritty hot-reloads — icons appear immediately without restart.
-
-**Revert:** Delete `~/.local/share/fonts/JetBrainsMono/` and run `fc-cache -fv`.
+**Revert:** `rm -rf ~/.local/share/fonts/JetBrainsMono && fc-cache -fv`
 
 ---
 
-## Step 4 — Rofi (application launcher)
+## Step 1 — Build Hyprland from Source
 
-**What this does:** Styles the `Super+d` launcher as a centred Tokyo Night
-spotlight panel — fixed 600px wide, 8 results visible, blue left-border on
-selection.
+Hyprland is not packaged in Ubuntu's apt repositories. It must be built from
+source. The process builds five small Hyprland-ecosystem libraries first, then
+Hyprland itself. Allow ~20 minutes on first build; subsequent rebuilds are faster.
+
+All libraries install to `/usr/local` and can be uninstalled cleanly. See
+`SOURCES.md` for the full details on each library.
+
+### 1a — Create a build workspace
+
+```bash
+mkdir -p ~/build/hypr
+cd ~/build/hypr
+```
+
+### 1b — Build the dependency chain in order
+
+Each library follows the same three-command pattern:
+```bash
+git clone <repo> && cd <name>
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+sudo cmake --build build --target install
+cd ..
+```
+
+Run through them in this order (copy-paste the block from `SOURCES.md Step 1`):
+
+1. `hyprwayland-scanner` — Wayland protocol code generator
+2. `hyprutils` — utility library
+3. `hyprlang` — Hyprland config language parser
+4. `hyprland-protocols` — Hyprland-specific Wayland protocols
+5. `aquamarine` — DRM/KMS rendering backend
+
+See `SOURCES.md → Step 1: Hyprland Build Chain` for the exact clone URLs and
+build commands for each library.
+
+### 1c — Build Hyprland itself
+
+```bash
+cd ~/build/hypr
+git clone --recursive https://github.com/hyprwm/Hyprland.git
+cd Hyprland
+
+# Check out the latest stable tag (replace with current release):
+git tag --sort=-v:refname | head -5  # list recent tags
+git checkout v0.48.1                 # example — use whatever is listed above
+
+make all
+sudo make install
+```
+
+This installs:
+- `/usr/local/bin/Hyprland`
+- `/usr/local/bin/hyprctl`
+- `/usr/share/wayland-sessions/hyprland.desktop`
+
+### Verify the build
+
+```bash
+Hyprland --version
+hyprctl version   # will fail until Hyprland is running — that's expected
+ls /usr/share/wayland-sessions/hyprland.desktop
+```
+
+### Revert (remove Hyprland)
+
+```bash
+# From the Hyprland source directory:
+cd ~/build/hypr/Hyprland
+sudo make uninstall
+# Or manually:
+sudo rm /usr/local/bin/Hyprland /usr/local/bin/hyprctl
+sudo rm /usr/share/wayland-sessions/hyprland.desktop
+```
+
+---
+
+## Step 2 — SDDM Session Entry
+
+Verify both sessions are available in SDDM:
+
+```bash
+# KDE Plasma (must exist)
+ls /usr/share/xsessions/plasmax11.desktop \
+   /usr/share/xsessions/plasma.desktop 2>/dev/null || echo "Check /usr/share/xsessions/"
+
+# Hyprland (added by Step 1 install)
+ls /usr/share/wayland-sessions/hyprland.desktop
+```
+
+If `hyprland.desktop` is missing, create it manually:
+```bash
+sudo tee /usr/share/wayland-sessions/hyprland.desktop > /dev/null <<'EOF'
+[Desktop Entry]
+Name=Hyprland
+Comment=An intelligent dynamic tiling Wayland compositor
+Exec=Hyprland
+Type=Application
+EOF
+```
+
+### Test (without logging out)
+
+```bash
+# Preview that SDDM will show both sessions:
+ls /usr/share/xsessions/ /usr/share/wayland-sessions/
+```
+
+Now log out: `Super+Shift+e` (from KDE) or use the KDE app menu → Leave.
+At the SDDM login screen, click the session selector and confirm you see both
+**Plasma** and **Hyprland**. Log back into **Plasma** for now — the next step
+is the first Hyprland login.
+
+**Revert:** Select **Plasma** in SDDM at any time. KDE is completely untouched.
+
+---
+
+## Step 3 — Bare Hyprland Config (first boot)
+
+Before deploying the full config, get a working bare session to confirm Hyprland
+starts cleanly on your hardware.
+
+### Deploy bare config
+
+```bash
+mkdir -p ~/.config/hypr
+tee ~/.config/hypr/hyprland.conf > /dev/null <<'EOF'
+monitor=,preferred,auto,1
+$terminal = alacritty
+
+bind = SUPER, Return, exec, $terminal
+bind = SUPER SHIFT, E, exit
+
+input {
+    kb_layout = us
+    touchpad { natural_scroll = true }
+}
+
+general {
+    gaps_in = 6
+    gaps_out = 12
+    border_size = 2
+    col.active_border   = rgba(7aa2f7ff)
+    col.inactive_border = rgba(292e42ff)
+}
+
+decoration { rounding = 8 }
+EOF
+```
+
+### Log into Hyprland
+
+Log out of KDE. At SDDM, select **Hyprland** from the session menu. Log in.
+
+You will see a plain black screen — that's correct at this stage.
+
+### Confirm Wayland is active
+
+Press `Super+Return` to open a terminal, then run:
+```bash
+echo "Session type: $XDG_SESSION_TYPE"
+echo "Wayland display: $WAYLAND_DISPLAY"
+# Expected: wayland and wayland-1 (or similar)
+```
+
+If the terminal doesn't open: Hyprland started but alacritty failed.
+Switch to a TTY (`Ctrl+Alt+F2`), check `journalctl -e` for errors.
+
+### Exit Hyprland
+
+`Super+Shift+E` — returns cleanly to SDDM.
+
+---
+
+## Step 4 — Full Hyprland Config
+
+**What this does:** Deploys the complete Hyprland config with Tokyo Night
+colours, omarchy-style animations, keybindings, window rules, and autostart.
 
 ### Backup
+
 ```bash
-cp -r ~/.config/rofi ~/.config/rofi.bak 2>/dev/null || true
+cp ~/.config/hypr/hyprland.conf ~/.config/hypr/hyprland.conf.bak 2>/dev/null || true
+```
+
+### Check your monitor setup first
+
+Boot into Hyprland with the bare config (Step 3), open a terminal, and run:
+
+```bash
+hyprctl monitors
+```
+
+The default `monitor=,preferred,auto,1` in the full config handles single
+and dual monitors automatically. For custom resolutions or specific ordering,
+see Step 17 (Display / Monitor Config).
+
+### Check for Nvidia GPU
+
+```bash
+lspci | grep -i nvidia
+```
+
+If you have an Nvidia card, **uncomment the Nvidia `env =` lines** in
+`hypr/hyprland.conf` before deploying (they're clearly marked in the file).
+
+### Deploy
+
+```bash
+mkdir -p ~/.config/hypr
+cp ~/Development/Ricing/hypr/hyprland.conf ~/.config/hypr/hyprland.conf
+```
+
+### Apply (reload config without full logout)
+
+```bash
+# From inside Hyprland:
+hyprctl reload
+```
+
+Or log out (`Super+Shift+E`) and back in.
+
+### Keybindings at a glance
+
+| Key | Action |
+|-----|--------|
+| `Super+Return` | Open terminal (alacritty) |
+| `Super+Space` | Open launcher (wofi) |
+| `Super+Shift+Q` | Close window |
+| `Super+h/j/k/l` | Focus left/down/up/right |
+| `Super+Shift+h/j/k/l` | Move window |
+| `Super+1…9, 0` | Switch workspace |
+| `Super+Shift+1…9, 0` | Move window to workspace |
+| `Super+F` | Fullscreen |
+| `Super+M` | Monocle (max without gaps) |
+| `Super+R` | Resize mode (hjkl/arrows, Esc to exit) |
+| `Super+Shift+Space` | Toggle floating |
+| `Super+L` | Lock screen |
+| `Super+Shift+S` | Screenshot selection → ~/Pictures |
+| `Print` | Screenshot full screen → ~/Pictures |
+| `Super+Shift+E` | Exit Hyprland |
+
+### Revert
+
+```bash
+cp ~/.config/hypr/hyprland.conf.bak ~/.config/hypr/hyprland.conf
+hyprctl reload
+```
+
+---
+
+## Step 4b — Polkit Agent & Network Tray
+
+**What this does:** Without a polkit agent, GUI apps that need elevated permissions
+(connecting to VPN, unlocking keyrings, mounting drives) silently fail. `nm-applet`
+adds a system tray icon so you can connect to WiFi without opening a terminal.
+Both are wired into `hyprland.conf` already.
+
+### Verify polkit agent starts
+
+```bash
+# From inside Hyprland, check it's running:
+pgrep -a polkit-gnome
+```
+
+If `policykit-1-gnome` wasn't available from your mirror, check alternatives:
+```bash
+# lxpolkit is a lighter fallback (lxsession package):
+which lxpolkit
+# If found, edit hyprland.conf exec-once line to:
+#   exec-once = lxpolkit
+```
+
+### Verify nm-applet appears in tray
+
+Waybar's tray module (rightmost position) should show a network icon.
+Click it to manage connections. Right-click the Waybar tray area if the icon
+is hidden.
+
+### Note on brightnessctl
+
+Brightness keys require your user to be in the `video` group:
+```bash
+groups | grep video || sudo usermod -aG video $USER
+# Log out and back in for group change to take effect
+```
+
+---
+
+## Step 5 — Waybar (status bar)
+
+**What this does:** Replaces the plain titlebar area with a floating Tokyo Night
+bar showing workspaces, clock, CPU, memory, network, volume, and battery.
+Started automatically by Hyprland (already in `exec-once` in hyprland.conf).
+
+### Backup
+
+```bash
+cp -r ~/.config/waybar ~/.config/waybar.bak 2>/dev/null || true
 ```
 
 ### Deploy
+
 ```bash
-mkdir -p ~/.config/rofi
-cp ~/Development/Ricing/rofi/config.rasi ~/.config/rofi/config.rasi
+mkdir -p ~/.config/waybar
+cp ~/Development/Ricing/waybar/config.jsonc ~/.config/waybar/config.jsonc
+cp ~/Development/Ricing/waybar/style.css    ~/.config/waybar/style.css
+```
+
+### Start / restart without logging out
+
+```bash
+killall waybar 2>/dev/null; waybar &
+```
+
+### Customise for your hardware
+
+**No battery (desktop):** Remove `"battery"` from the `modules-right` array in
+`~/.config/waybar/config.jsonc`.
+
+**No wifi:** The network module auto-detects ethernet vs wifi. No changes needed
+unless you want to pin it to a specific interface:
+```jsonc
+"network": { "interface": "eth0" }
+```
+
+**PipeWire audio:** The `pulseaudio` module works with both PipeWire and PulseAudio
+because PipeWire ships a PulseAudio compatibility layer.
+
+### Revert
+
+```bash
+killall waybar
+cp -r ~/.config/waybar.bak ~/.config/waybar
+waybar &
+```
+
+---
+
+## Step 6 — Wofi (application launcher)
+
+**What this does:** Styles the `Super+Space` launcher as a centred Tokyo Night
+spotlight panel — 600px wide, 8 results, blue border on selection.
+Replaces the X11-only rofi.
+
+### Backup
+
+```bash
+cp -r ~/.config/wofi ~/.config/wofi.bak 2>/dev/null || true
+```
+
+### Deploy
+
+```bash
+mkdir -p ~/.config/wofi
+cp ~/Development/Ricing/wofi/config    ~/.config/wofi/config
+cp ~/Development/Ricing/wofi/style.css ~/.config/wofi/style.css
 ```
 
 ### Verify
-```bash
-rofi -show drun
-```
-Press `Escape` to dismiss. The panel should appear centred with the dark
-Tokyo Night background and blue border.
 
-If rofi opens but looks unstyled (grey default theme): confirm the file is at
-`~/.config/rofi/config.rasi` exactly — rofi is strict about the path.
+```bash
+wofi --show drun
+```
+
+The panel should appear centred, dark, with a blue focus border.
+Press `Escape` to dismiss.
+
+If wofi opens unstyled (grey/white): confirm `~/.config/wofi/style.css` exists.
 
 ### Revert
+
 ```bash
-cp -r ~/.config/rofi.bak ~/.config/rofi
-# or to go back to rofi defaults:
-rm ~/.config/rofi/config.rasi
+cp -r ~/.config/wofi.bak ~/.config/wofi
+# or remove styling entirely:
+rm ~/.config/wofi/style.css
 ```
 
 ---
 
-## Step 5 — Picom (compositor)
+## Step 7 — Alacritty (terminal)
 
-**What this does:** Adds window shadows, fade animations on open/close, and
-rounded corners (6px). Alacritty's 96% opacity also requires picom to be
-running. Started automatically by i3 on login.
+**What this does:** Gives alacritty Tokyo Night Dark colours, JetBrains Mono at
+12pt, subtle transparency (96%), block cursor with blink. Alacritty detects
+Wayland automatically — no config changes needed vs the X11 version.
 
 ### Backup
+
 ```bash
-cp ~/.config/picom/picom.conf ~/.config/picom.conf.bak 2>/dev/null || true
+cp -r ~/.config/alacritty ~/.config/alacritty.bak 2>/dev/null || true
 ```
 
 ### Deploy
+
 ```bash
-mkdir -p ~/.config/picom
-cp ~/Development/Ricing/picom/picom.conf ~/.config/picom/picom.conf
+mkdir -p ~/.config/alacritty
+cp ~/Development/Ricing/alacritty/alacritty.toml ~/.config/alacritty/alacritty.toml
 ```
 
-### Start / restart picom manually (without logging out)
-```bash
-# Kill existing instance if running
-pkill picom 2>/dev/null || true
-# Start fresh
-picom --backend glx -b
-```
+### Verify
 
-### If you see screen tearing or glx errors
-Switch the backend to xrender:
-```bash
-# In ~/.config/picom/picom.conf change:
-backend = "xrender";
-# and remove: glx-no-stencil and glx-copy-from-front lines
-```
+Alacritty hot-reloads — open a terminal and the colours change immediately.
 
-### If corner-radius causes an error (picom < 8.0)
-```bash
-sed -i '/corner-radius/d; /rounded-corners-exclude/,/};/d' ~/.config/picom/picom.conf
-pkill picom; picom --backend glx -b
-```
-
-### Disable picom entirely (if you hit driver issues)
-```bash
-pkill picom
-# Comment out in ~/.config/i3/config:
-# exec --no-startup-id picom --backend glx -b
-i3-msg reload
-```
+If the terminal looks wrong:
+- Wrong colours → confirm `alacritty --version` is ≥ 0.12
+- Box characters instead of icons → Nerd Font not installed (see Step 0c)
 
 ### Revert
+
 ```bash
-pkill picom
-cp ~/.config/picom.conf.bak ~/.config/picom/picom.conf
-picom --backend glx -b
+cp -r ~/.config/alacritty.bak ~/.config/alacritty
 ```
 
 ---
 
-## Step 6 — Dunst (notifications)
+## Step 8 — Dunst (notifications on Wayland)
 
-**What this does:** Replaces KDE's notification daemon with dunst. Notifications
-appear top-right with Tokyo Night colours: grey border for low urgency, blue for
-normal, red for critical. Started automatically by i3 on login.
+**What this does:** Dunst works on Wayland with one extra setting: `layer = overlay`.
+Without it, notifications appear behind all windows. This step deploys the
+updated config with that setting already included.
 
 ### Backup
+
 ```bash
 cp -r ~/.config/dunst ~/.config/dunst.bak 2>/dev/null || true
 ```
 
 ### Deploy
+
 ```bash
 mkdir -p ~/.config/dunst
 cp ~/Development/Ricing/dunst/dunstrc ~/.config/dunst/dunstrc
 ```
 
-### Start / restart dunst manually
+### Start / restart dunst
+
 ```bash
 pkill dunst 2>/dev/null || true
 dunst &
 ```
 
 ### Test it
+
 ```bash
-# Low urgency
-notify-send -u low "Test" "This is a low urgency notification"
-
-# Normal
-notify-send "Test" "This is a normal notification"
-
-# Critical — stays until clicked
-notify-send -u critical "Test" "Critical — click to dismiss"
+notify-send -u low    "Test" "Low urgency — grey border, 4s"
+notify-send           "Test" "Normal — blue border, 6s"
+notify-send -u critical "Test" "Critical — red border, stays until clicked"
 ```
 
+Notifications should appear top-right, on top of all windows.
+
 ### Revert
+
 ```bash
 pkill dunst
 cp -r ~/.config/dunst.bak ~/.config/dunst
@@ -405,42 +585,178 @@ dunst &
 
 ---
 
-## Step 7 — Wallpaper (feh)
+## Step 9 — Wallpaper (swaybg)
 
-**What this does:** feh sets the desktop wallpaper on i3 start. No daemon,
-no config file — just a single command in `~/.config/i3/config`.
+**What this does:** `swaybg` sets the desktop wallpaper as a Wayland-native
+background layer. It starts automatically with Hyprland. Until this step, it
+runs with a solid Tokyo Night background (`#1a1b26`).
 
 ### Add your wallpaper
+
 ```bash
 mkdir -p ~/Pictures
 cp /path/to/your/image.jpg ~/Pictures/wallpaper.jpg
 ```
 
-### Change wallpaper without logging out
+### Switch from solid colour to the image
+
 ```bash
-feh --no-fehbg --bg-fill ~/Pictures/wallpaper.jpg
+pkill swaybg
+swaybg -i ~/Pictures/wallpaper.jpg -m fill &
 ```
 
-### Point i3 to a different path
-Edit `~/.config/i3/config` and change the feh line:
+### Make it permanent (survive reboots)
+
+Edit `~/.config/hypr/hyprland.conf` and replace the solid-colour swaybg line:
 ```
-exec --no-startup-id feh --no-fehbg --bg-fill ~/Pictures/wallpaper.jpg
+# Replace this:
+exec-once = swaybg -c 1a1b26
+# With this:
+exec-once = swaybg -i ~/Pictures/wallpaper.jpg -m fill
 ```
-Then `Super+Shift+r` to reload i3.
+Then `hyprctl reload`.
+
+### Upgrade path: hyprpaper
+
+For animated wallpapers or per-monitor wallpaper control, see
+`SOURCES.md → hyprpaper`. It requires a source build but is a drop-in
+replacement — just update the `exec-once` line.
 
 ### Recommended wallpapers for Tokyo Night
+
 Dark, minimal, abstract — anything with deep blues and purples.
-- Search: `unsplash.com` → "dark abstract blue"
-- Or grab one of the wallpapers shipped with Omarchy themes (they're MIT licensed)
+Search: `unsplash.com` → "dark abstract blue" or "cyberpunk cityscape"
 
 ---
 
-## Step 8 — Tokyo Night GTK theme
+## Step 9b — Idle Management (hypridle)
 
-**What this does:** Makes all GTK3/GTK4 apps (Nautilus, Thunar, GTK-based settings
-panels) use Tokyo Night Dark colours and styling. No compilation — extract and copy.
+**What this does:** Automatically dims the display, locks the screen, and turns
+off the monitor after inactivity — matching omarchy's behaviour. Without this,
+the screen never locks automatically and the display never sleeps.
+
+`hypridle` is a Hyprland-ecosystem tool not available in Ubuntu apt.
+See `SOURCES.md → hypridle` for the source build (same cmake pattern as the
+other hypr libraries, ~2 minutes).
+
+### Config after building
+
+Create `~/.config/hypr/hypridle.conf`:
+
+```ini
+general {
+    lock_cmd = swaylock
+    before_sleep_cmd = swaylock
+    after_sleep_cmd = hyprctl dispatch dpms on
+}
+
+listener {
+    timeout = 300          # 5 min: lock screen
+    on-timeout = swaylock
+    on-resume = notify-send "Welcome back"
+}
+
+listener {
+    timeout = 360          # 6 min: turn off display
+    on-timeout = hyprctl dispatch dpms off
+    on-resume = hyprctl dispatch dpms on
+}
+```
+
+### Add to hyprland.conf autostart
+
+```bash
+# Add this line to ~/.config/hypr/hyprland.conf exec-once section:
+exec-once = hypridle
+```
+
+### Revert / skip
+
+If you skip this step, the screen will never lock or sleep automatically.
+That's fine for a desktop — only relevant for laptops or security requirements.
+
+**Revert:** Remove `exec-once = hypridle` from `hyprland.conf`, then
+`pkill hypridle`.
+
+---
+
+## Step 10 — Lock Screen (swaylock)
+
+**What this does:** Locks the screen with a solid Tokyo Night background and a
+ring indicator in Tokyo Night colours. `Super+L` triggers it (already wired
+in `hyprland.conf`). Notifications are automatically paused while locked.
+
+> **Note:** The standard apt `swaylock` shows a solid colour background, not a
+> blurred screenshot. For blur + clock overlay, see `SOURCES.md → swaylock-effects`.
+
+### Backup
+
+```bash
+cp -r ~/.config/swaylock ~/.config/swaylock.bak 2>/dev/null || true
+```
+
+### Deploy
+
+```bash
+mkdir -p ~/.config/swaylock
+cp ~/Development/Ricing/swaylock/config ~/.config/swaylock/config
+```
+
+### Test without locking yourself out
+
+Open a second TTY first (`Ctrl+Alt+F2`), then test from Hyprland:
+```bash
+swaylock
+```
+
+If the screen goes blank and then shows the lock UI, press `Ctrl+Alt+F2`
+to switch to the TTY and run `pkill swaylock` if anything looks wrong.
+
+### Pause notifications on lock
+
+To pause dunst while locked and resume on unlock (matching the old i3lock
+behaviour), create a wrapper script:
+
+```bash
+cat > ~/.local/bin/lock.sh << 'EOF'
+#!/usr/bin/env bash
+dunstctl set-paused true
+swaylock
+dunstctl set-paused false
+EOF
+chmod +x ~/.local/bin/lock.sh
+```
+
+Then update the lock keybind in `~/.config/hypr/hyprland.conf`:
+```
+bind = $mod, L, exec, ~/.local/bin/lock.sh
+```
+
+### Upgrade path: swaylock-effects (blur on lock)
+
+For a blurred screenshot background (like the old i3lock-color), see
+`SOURCES.md → swaylock-effects`. It requires a source build but uses the
+same config file with two extra lines:
+```
+screenshots
+effect-blur=7x5
+```
+
+### Revert
+
+```bash
+cp -r ~/.config/swaylock.bak ~/.config/swaylock
+```
+
+---
+
+## Step 11 — Tokyo Night GTK Theme
+
+**What this does:** Makes all GTK3/GTK4 apps use Tokyo Night Dark colours.
+Same approach as before — extract and copy, no compilation.
 
 ### Install the theme
+
 ```bash
 mkdir -p ~/.themes
 wget https://github.com/Fausto-Korpsvart/Tokyo-Night-GTK-Theme/archive/refs/heads/master.zip \
@@ -450,91 +766,66 @@ cp -r /tmp/tokyonight-gtk/Tokyo-Night-GTK-Theme-master/themes/* ~/.themes/
 rm -rf /tmp/tokyonight-gtk /tmp/tokyonight-gtk.zip
 ```
 
-Verify theme files are present:
+Verify:
 ```bash
 ls ~/.themes/ | grep Tokyonight
-# Should show: Tokyonight-Dark-B, Tokyonight-Storm-B, and others
+# Should show: Tokyonight-Dark-B, Tokyonight-Storm-B, etc.
 ```
 
-We use `Tokyonight-Dark-B` — the darkest, closest to the i3 palette we set.
+We use `Tokyonight-Dark-B` — darkest variant, closest to the Hyprland palette.
 
 **Revert:** `rm -rf ~/.themes/Tokyonight*`
 
 ---
 
-## Step 9 — Icons and cursor
+## Step 12 — Icons and Cursor
 
-**What this does:** Switches icons to Papirus-Dark (clean, flat, dark-friendly) and
-the cursor to capitaine-cursors (minimal, legible on dark backgrounds).
+**What this does:** Switches icons to Papirus-Dark and cursor to
+capitaine-cursors. Both were already installed in Step 0.
 
-### Icons
+### Verify they're installed
+
 ```bash
-sudo apt install papirus-icon-theme
+ls /usr/share/icons/ | grep -i "papirus\|capitaine"
 ```
 
-If missing from mirror — Papirus is also available as a direct install:
+If missing:
 ```bash
-wget -qO- https://git.io/papirus-icon-theme-install | DESTDIR="$HOME/.local/share/icons" sh
+sudo apt install papirus-icon-theme capitaine-cursors
 ```
-
-### Cursor
-```bash
-sudo apt install capitaine-cursors
-```
-
-If missing from mirror, see `SOURCES.md → capitaine-cursors`.
 
 **Revert:** `sudo apt remove papirus-icon-theme capitaine-cursors`
 
 ---
 
-## Step 10 — Apply GTK settings
+## Step 13 — Apply GTK Settings
 
-**What this does:** Writes the theme, icon, cursor, and font choices into the GTK
-config files and starts `xsettingsd` so running apps pick up the changes without
-needing a full logout.
+**What this does:** On Wayland, GTK settings are applied via `gsettings` rather
+than `xsettingsd`. The `exec-once = gsettings set …` lines in `hyprland.conf`
+(Step 4) handle this automatically on every login.
 
-### Install xsettingsd
-```bash
-sudo apt install xsettingsd
-```
-If missing: see `SOURCES.md → xsettingsd`.
+This step deploys the GTK config files for apps that read them directly.
 
 ### Backup existing GTK config
+
 ```bash
 cp ~/.config/gtk-3.0/settings.ini ~/.config/gtk-3.0/settings.ini.bak 2>/dev/null || true
 cp ~/.config/gtk-4.0/settings.ini ~/.config/gtk-4.0/settings.ini.bak 2>/dev/null || true
 cp ~/.gtkrc-2.0 ~/.gtkrc-2.0.bak 2>/dev/null || true
-cp ~/.config/xsettingsd/xsettingsd.conf ~/.config/xsettingsd/xsettingsd.conf.bak 2>/dev/null || true
 ```
 
 ### Deploy
+
 ```bash
-mkdir -p ~/.config/gtk-3.0 ~/.config/gtk-4.0 ~/.config/xsettingsd
+mkdir -p ~/.config/gtk-3.0 ~/.config/gtk-4.0
 
 cp ~/Development/Ricing/gtk/settings.ini      ~/.config/gtk-3.0/settings.ini
 cp ~/Development/Ricing/gtk/gtk4-settings.ini ~/.config/gtk-4.0/settings.ini
 cp ~/Development/Ricing/gtk/gtkrc-2.0         ~/.gtkrc-2.0
-cp ~/Development/Ricing/xsettingsd/xsettingsd.conf ~/.config/xsettingsd/xsettingsd.conf
 ```
 
-### Apply without logging out
-```bash
-pkill xsettingsd 2>/dev/null || true
-xsettingsd &
-```
+### Apply immediately (belt and braces)
 
-Open any GTK app (Thunar, a settings panel) — it should immediately show the new theme.
-
-> **GTK4 caveat:** Apps built with libadwaita (newer GNOME apps) largely ignore
-> the GTK4 settings file and require an additional override. If you see a GNOME
-> app that refuses to theme, add this to your i3 autostart (already in i3/config):
-> ```
-> exec --no-startup-id gsettings set org.gnome.desktop.interface color-scheme prefer-dark
-> ```
-> Then `Super+Shift+r`. This forces dark mode in libadwaita apps.
-
-### Also apply via gsettings (belt and braces)
 ```bash
 gsettings set org.gnome.desktop.interface gtk-theme        'Tokyonight-Dark-B'
 gsettings set org.gnome.desktop.interface icon-theme       'Papirus-Dark'
@@ -544,28 +835,30 @@ gsettings set org.gnome.desktop.interface font-name        'JetBrains Mono 10'
 gsettings set org.gnome.desktop.interface color-scheme     'prefer-dark'
 ```
 
+Open Dolphin or a GTK app — it should show the Tokyo Night theme immediately.
+
+> **GTK4 / libadwaita caveat:** Apps built with libadwaita largely ignore the
+> GTK4 settings file. The `color-scheme = prefer-dark` gsettings call above
+> forces dark mode in those apps.
+
 ### Revert
+
 ```bash
 cp ~/.config/gtk-3.0/settings.ini.bak ~/.config/gtk-3.0/settings.ini
 cp ~/.config/gtk-4.0/settings.ini.bak ~/.config/gtk-4.0/settings.ini
 cp ~/.gtkrc-2.0.bak ~/.gtkrc-2.0
-pkill xsettingsd; xsettingsd &
 ```
 
 ---
 
-## Step 11 — Qt / KDE apps (Dolphin, KDE settings, etc.)
+## Step 14 — Qt / KDE Apps (Kvantum)
 
-**What this does:** KDE apps like Dolphin use Qt, not GTK. Without this step they
-will ignore the GTK theme and render in the default Breeze style (light or dark
-depending on KDE settings). Kvantum lets you apply a matching Tokyo Night skin.
-
-### Install Kvantum
-```bash
-sudo apt install qt5-style-kvantum qt5-style-kvantum-themes
-```
+**What this does:** KDE apps like Dolphin use Qt. Kvantum applies a matching
+Tokyo Night skin so they match the rest of the desktop. Works identically on
+Wayland vs X11 — no changes from the original tutorial.
 
 ### Install the Tokyo Night Kvantum theme
+
 ```bash
 mkdir -p ~/.config/Kvantum
 wget https://github.com/Fausto-Korpsvart/Tokyo-Night-GTK-Theme/archive/refs/heads/master.zip \
@@ -576,254 +869,169 @@ rm -rf /tmp/tokyonight-gtk /tmp/tokyonight-gtk.zip
 ```
 
 ### Apply via Kvantum Manager
+
 ```bash
 kvantummanager
 ```
+
 1. Select **TokyoNight** from the dropdown
 2. Click **Use this theme**
 3. Close
 
 ### Tell Qt to use Kvantum
-```bash
-# For Qt5
-echo 'QT_STYLE_OVERRIDE=kvantum' >> ~/.profile
 
-# For Qt6 (if needed)
-echo 'QT6_STYLE_OVERRIDE=kvantum' >> ~/.profile
-```
-
-Log out and back in (to i3), or source your profile and relaunch the app:
+Already set by `env = QT_STYLE_OVERRIDE,kvantum` in `hyprland.conf`.
+If Qt apps still show Breeze, also add to `~/.profile`:
 ```bash
-source ~/.profile
+echo 'export QT_STYLE_OVERRIDE=kvantum' >> ~/.profile
 ```
 
 ### Revert
+
+Open kvantummanager → switch back to Default.
+Remove the `QT_STYLE_OVERRIDE` line from `~/.profile` if you added it.
+
+---
+
+## Step 15 — XDG Desktop Portal
+
+**What this does:** The XDG portal handles screen sharing, file picker dialogs,
+and drag-and-drop for apps running under Wayland. Required for browsers and
+Electron apps to share screens correctly.
+
+Hyprland sets the Wayland environment via D-Bus (already in `hyprland.conf`
+`exec-once` lines) then restarts the portal systemd user services so they pick
+up the correct `WAYLAND_DISPLAY` variable.
+
+### Verify the portal is running (from inside Hyprland)
+
 ```bash
-# Remove the QT_STYLE_OVERRIDE line from ~/.profile
-# Open kvantummanager and switch back to Default
+systemctl --user status xdg-desktop-portal xdg-desktop-portal-wlr
+```
+
+Both should show `active (running)`. If either shows `failed`:
+
+```bash
+# Force a restart:
+systemctl --user restart xdg-desktop-portal xdg-desktop-portal-wlr
+# Check logs:
+journalctl --user -u xdg-desktop-portal-wlr -e
+```
+
+### Quick test (screen sharing works)
+
+Open Zen/Firefox → a video call site → request screen share. You should see a
+monitor picker rather than a "no screens found" error.
+
+### Upgrade path: xdg-desktop-portal-hyprland
+
+The Hyprland project ships its own portal (`xdg-desktop-portal-hyprland`)
+with better integration for screencasting. See `SOURCES.md → xdg-desktop-portal-hyprland`.
+
+---
+
+## Step 16 — Screenshots
+
+**What this does:** `grim` captures Wayland screens. `slurp` provides the
+interactive area selector. Keybindings are already set in `hyprland.conf`.
+
+### Verify tools are installed
+
+```bash
+grim --version
+slurp --version
+```
+
+### Test
+
+```bash
+mkdir -p ~/Pictures
+# Full screenshot:
+grim ~/Pictures/test-screenshot.png
+# Area screenshot (drag to select):
+grim -g "$(slurp)" ~/Pictures/test-area.png
+```
+
+### Keybinds (already wired in hyprland.conf)
+
+| Key | Action |
+|-----|--------|
+| `Print` | Full screenshot → `~/Pictures/screenshot-TIMESTAMP.png` |
+| `Super+Shift+S` | Area screenshot (click-drag to select) |
+
+### Copy to clipboard instead of file
+
+```bash
+# Add these variants to ~/.config/hypr/hyprland.conf if needed:
+bind = $mod ALT, Print, exec, grim - | wl-copy
+bind = $mod ALT SHIFT, S, exec, grim -g "$(slurp)" - | wl-copy
 ```
 
 ---
 
-## Step 12 — Zen browser (Tokyo Night)
+## Step 17 — Display / Monitor Config
 
-Zen is a Firefox fork — it supports Firefox themes and `userChrome.css`.
+**What this does:** Hyprland's `monitor=` directive replaces autorandr/arandr.
+Monitors are detected automatically by the default rule; this step documents
+how to customise for your setup.
 
-### Option A — Firefox/Zen theme add-on (quickest)
+### Detect your monitors (from inside Hyprland)
 
-1. Open Zen
-2. Go to `about:addons` → Extensions → search **"Tokyo Night"**
-3. Install the theme by **enkia** (the reference implementation)
-4. Activate it from the Themes tab
-
-This themes the browser chrome (tabs, toolbar, sidebar) to Tokyo Night.
-
-### Option B — userChrome.css (full control, no add-on)
-
-Enable userChrome.css first:
-1. Open `about:config`
-2. Search `toolkit.legacyUserProfileCustomizations.stylesheets`
-3. Set to `true`
-
-Find your profile folder:
 ```bash
-# Open about:support in Zen, look for "Profile Directory", then:
-ls ~/.zen/  # or ~/.mozilla/firefox/ depending on Zen version
-# The profile folder contains a 'chrome' subdirectory
+hyprctl monitors
 ```
 
-Create `chrome/userChrome.css` in your profile folder. A minimal Tokyo Night
-override that colours the toolbar and tabs:
-
-```css
-/* Tokyo Night Dark — Zen / Firefox userChrome.css */
-:root {
-    --tn-bg:      #1a1b26;
-    --tn-bg-dark: #16161e;
-    --tn-bg-hi:   #292e42;
-    --tn-fg:      #c0caf5;
-    --tn-blue:    #7aa2f7;
-    --tn-comment: #565f89;
-}
-
-/* Toolbar */
-#nav-bar, #toolbar-menubar, #TabsToolbar {
-    background-color: var(--tn-bg-dark) !important;
-    color: var(--tn-fg) !important;
-    border-color: var(--tn-bg-hi) !important;
-}
-
-/* Active tab */
-.tabbrowser-tab[selected] .tab-background {
-    background-color: var(--tn-bg) !important;
-}
-
-/* Inactive tabs */
-.tabbrowser-tab:not([selected]) .tab-background {
-    background-color: var(--tn-bg-dark) !important;
-}
-
-/* URL bar */
-#urlbar-background {
-    background-color: var(--tn-bg-hi) !important;
-    border-color: var(--tn-blue) !important;
-}
-
-/* Sidebar (Zen-specific) */
-#sidebar-box {
-    background-color: var(--tn-bg-dark) !important;
-}
+Sample output:
+```
+Monitor DP-1, 2560x1440@144.00Hz at 0x0, scale 1.0, transform 0
+Monitor HDMI-A-1, 1920x1080@60.00Hz at 2560x0, scale 1.0, transform 0
 ```
 
-Restart Zen to apply.
+### Add explicit monitor rules
 
-> **Note:** Zen ships with its own sidebar and workspace UI. The userChrome.css
-> above targets standard Firefox elements. Some Zen-specific panels may need
-> additional selectors — use the Browser Toolbox (`Ctrl+Alt+Shift+I`) to inspect
-> element IDs if something doesn't match.
+Edit `~/.config/hypr/hyprland.conf`, replace the auto rule with explicit ones:
+```
+# monitor = name,        resolution@hz,  position,  scale
+monitor   = DP-1,        2560x1440@144,  0x0,       1
+monitor   = HDMI-A-1,    1920x1080@60,   2560x0,    1
+# Keep the fallback for any monitor not listed above:
+monitor   = ,preferred,auto,1
+```
 
-### Revert Option A
-Switch back to default theme in `about:addons` → Themes.
+### Laptop lid / external-only
 
-### Revert Option B
-Delete `chrome/userChrome.css` from your profile folder and restart Zen.
+Add to `hyprland.conf`:
+```
+# Close lid → disable built-in display
+bindl = , switch:on:Lid Switch,  exec, hyprctl keyword monitor "eDP-1, disable"
+bindl = , switch:off:Lid Switch, exec, hyprctl keyword monitor "eDP-1, preferred, auto, 1"
+```
+
+### Reload
+
+```bash
+hyprctl reload
+```
+
+Monitor changes take effect immediately without logging out.
 
 ---
 
-## Step 13 — Lock screen (i3lock-color)
+## Step 18 — SDDM Login Screen (Tokyo Night)
 
-**What this does:** Replaces the flat dark rectangle from bare `i3lock` with a blurred
-screenshot of your current screen, a large Tokyo Night–styled clock, and a subtle
-ring indicator. Notifications are paused while locked and resume on unlock.
-
-`Super+Shift+x` triggers it (already wired in i3/config).
-
-### Build i3lock-color from source
-i3lock-color is not on apt. See `SOURCES.md → i3lock-color` for the full build steps.
-It installs to `/usr/local/bin/i3lock-color`.
-
-Verify the build worked:
-```bash
-i3lock-color --version
-```
-
-### Backup
-```bash
-cp ~/.config/i3/lock.sh ~/.config/i3/lock.sh.bak 2>/dev/null || true
-```
-
-### Deploy
-```bash
-cp ~/Development/Ricing/lock/lock.sh ~/.config/i3/lock.sh
-chmod +x ~/.config/i3/lock.sh
-```
-
-### Test without locking yourself out
-Open a second TTY first (`Ctrl+Alt+F2`), then test the lock from your i3 session.
-If the lock screen hangs or looks wrong, switch to the TTY and kill it:
-```bash
-pkill i3lock-color
-```
-
-### Fallback — if i3lock-color can't be compiled
-Keep bare i3lock as the fallback. Edit `~/.config/i3/config` and change the lock line:
-```
-bindsym $mod+Shift+x exec i3lock -c 16161e
-```
-
-### Revert
-```bash
-cp ~/.config/i3/lock.sh.bak ~/.config/i3/lock.sh
-# or to go back to bare i3lock:
-# edit ~/.config/i3/config and replace the lock line as shown above
-```
-
----
-
-## Step 14 — Display management (autorandr + arandr)
-
-**What this does:** `arandr` gives you a drag-and-drop GUI to arrange monitors.
-`autorandr` saves those arrangements as named profiles and automatically applies
-the right one when you plug or unplug a monitor — no manual `xrandr` commands needed.
-
-### Install
-```bash
-sudo apt install autorandr arandr
-```
-If missing from mirror, see `SOURCES.md → autorandr`.
-
-### One-time setup — save your display profiles
-
-**Step 1:** Open arandr and arrange your displays visually:
-```bash
-arandr
-```
-Apply the layout you want (primary monitor, resolution, orientation, position).
-Close arandr — you don't need to save its `.sh` script.
-
-**Step 2:** Save the current state as an autorandr profile:
-```bash
-# Replace <name> with something meaningful
-autorandr --save laptop        # just the built-in screen
-autorandr --save home          # docked with external monitor(s)
-autorandr --save external      # external only, lid closed
-```
-
-Run this for each physical configuration you use.
-
-**Step 3:** Test switching works:
-```bash
-autorandr --list               # show saved profiles
-autorandr --change             # auto-detect and apply matching profile
-autorandr home                 # force a specific profile
-```
-
-### Add to i3 autostart
-The i3 config already has a slot for autostart. Add this line to `~/.config/i3/config`:
-```
-exec --no-startup-id autorandr --change
-```
-Also add it to the reload binding section so it fires on `Super+Shift+r`:
-```
-exec_always --no-startup-id autorandr --change
-```
-
-### Switching profiles manually
-```bash
-autorandr --change             # auto-detect
-autorandr laptop               # force laptop-only
-autorandr home                 # force docked layout
-```
-
-Or bind it in i3:
-```
-bindsym $mod+F7 exec autorandr --change
-```
-
-### Revert
-```bash
-# autorandr only ever runs xrandr — removing it just means no auto-switching
-# To delete a saved profile:
-autorandr --remove home
-```
-
----
-
-## Step 15 — SDDM login screen (Tokyo Night)
-
-**What this does:** Replaces the stock Kubuntu SDDM theme with a Tokyo Night–styled
-login screen so the full boot-to-desktop experience is consistent.
-
-> This step requires `sudo` and edits a system file. It has no effect on the i3 or
-> KDE Plasma sessions themselves — only the login screen changes.
+**What this does:** Applies a Tokyo Night–styled login screen. Identical to
+the original tutorial — this step is unaffected by the Wayland/Hyprland migration.
 
 ### Check your SDDM version
+
 ```bash
 sddm --version
 ```
-The astronaut theme requires SDDM ≥ 0.19. Ubuntu 24.04 ships 0.21 — you're fine.
+
+The astronaut theme requires SDDM ≥ 0.19. Kubuntu 24.04 ships 0.21.
 
 ### Install Qt dependencies
+
 ```bash
 sudo apt install \
     qml-module-qtquick-controls \
@@ -833,6 +1041,7 @@ sudo apt install \
 ```
 
 ### Install the theme
+
 ```bash
 git clone https://github.com/Keyitdev/sddm-astronaut-theme.git /tmp/sddm-astronaut-theme
 sudo cp -r /tmp/sddm-astronaut-theme /usr/share/sddm/themes/sddm-astronaut-theme
@@ -841,13 +1050,13 @@ rm -rf /tmp/sddm-astronaut-theme
 
 ### Activate the Tokyo Night variant
 
-The astronaut theme ships multiple variants. Switch to Tokyo Night:
 ```bash
 sudo cp /usr/share/sddm/themes/sddm-astronaut-theme/Themes/tokyo-night.conf \
         /usr/share/sddm/themes/sddm-astronaut-theme/theme.conf
 ```
 
 ### Tell SDDM to use the theme
+
 ```bash
 sudo mkdir -p /etc/sddm.conf.d
 sudo tee /etc/sddm.conf.d/theme.conf > /dev/null <<'EOF'
@@ -857,63 +1066,53 @@ EOF
 ```
 
 ### Preview without logging out
+
 ```bash
 sddm-greeter --test-mode --theme /usr/share/sddm/themes/sddm-astronaut-theme
 ```
-Press `Ctrl+C` or close the window to dismiss the preview.
 
-### Backup the SDDM config
-```bash
-sudo cp /etc/sddm.conf.d/theme.conf /etc/sddm.conf.d/theme.conf.bak 2>/dev/null || true
-```
+Press `Ctrl+C` to dismiss.
 
 ### Revert
-```bash
-# Remove the theme config — SDDM falls back to its default Breeze theme
-sudo rm /etc/sddm.conf.d/theme.conf
-```
 
-Or restore the Breeze theme explicitly:
 ```bash
-sudo tee /etc/sddm.conf.d/theme.conf > /dev/null <<'EOF'
-[Theme]
-Current=breeze
-EOF
+sudo rm /etc/sddm.conf.d/theme.conf
+# SDDM falls back to Breeze automatically
 ```
 
 ---
 
-## Step 16 — Starship prompt (Tokyo Night)
+## Step 19 — Starship Prompt (Tokyo Night)
 
-**What this does:** Applies a Tokyo Night–styled prompt to starship. Shows directory,
-git branch/status, command duration, and language context (right prompt). Clean
-single-line layout with a `❯` character that turns red on error.
+**What this does:** Applies a Tokyo Night–styled prompt to Starship. Unchanged
+from the original tutorial — Starship works identically on Wayland.
 
 ### Backup
+
 ```bash
 cp ~/.config/starship.toml ~/.config/starship.toml.bak 2>/dev/null || true
 ```
 
-### Option A — starship's built-in preset (quickest sanity check)
+### Option A — Starship's built-in preset
+
 ```bash
 starship preset tokyo-night -o /tmp/starship-preview.toml
-# Preview it first, then apply if you like it:
 cp /tmp/starship-preview.toml ~/.config/starship.toml
 ```
 
-### Option B — the custom config from this repo (recommended)
-More control: right prompt with language versions, cleaner git indicators,
-command duration only shown if > 2 seconds, username/hostname hidden.
+### Option B — Custom config from this repo (recommended)
+
 ```bash
 cp ~/Development/Ricing/starship/starship.toml ~/.config/starship.toml
 ```
 
-Apply immediately — open a new fish session or:
+Apply immediately:
 ```fish
 exec fish
 ```
 
 ### Revert
+
 ```bash
 cp ~/.config/starship.toml.bak ~/.config/starship.toml
 exec fish
@@ -921,170 +1120,352 @@ exec fish
 
 ---
 
-## Step 17 — Fish shell colours (Tokyo Night)
+## Step 20 — Fish Shell Colours (Tokyo Night)
 
-**What this does:** Sets fish's universal colour variables so syntax highlighting,
-autosuggestions, tab completions, and the pager all match Tokyo Night. These are
-stored as universal variables — persistent, no config.fish edits needed.
+**What this does:** Sets fish's syntax highlighting to Tokyo Night. Unchanged
+from the original tutorial.
 
 ### Backup
-Fish stores these in `~/.local/share/fish/fish_variables`. Back it up:
+
 ```bash
 cp ~/.local/share/fish/fish_variables ~/.local/share/fish/fish_variables.bak
 ```
 
 ### Apply
-Run the colour script directly with fish (not bash):
+
 ```fish
 fish ~/Development/Ricing/fish/tokyo-night-colors.fish
 ```
 
-The changes are immediate — open a new terminal and the syntax highlighting
-should be Tokyo Night.
-
 ### Verify
-Type a command in fish — commands should be blue (`#7aa2f7`), strings green
-(`#9ece6a`), comments grey (`#565f89`), errors red (`#f7768e`).
+
+Type a command — commands should be blue (`#7aa2f7`), strings green (`#9ece6a`),
+comments grey (`#565f89`), errors red (`#f7768e`).
 
 ### Revert
+
 ```bash
 cp ~/.local/share/fish/fish_variables.bak ~/.local/share/fish/fish_variables
 exec fish
 ```
 
-Or reset to fish defaults entirely:
-```fish
-set -U fish_color_command    # (empty resets to default)
-# Repeat for each variable listed in the script
-```
-
 ---
 
-## Step 18 — btop (Tokyo Night)
+## Step 21 — btop (Tokyo Night)
 
-**What this does:** Adds a Tokyo Night theme file to btop and switches to it.
-CPU/memory/network graphs use the full Tokyo Night palette with meaningful
-colour progressions (green → yellow → red as load increases).
-
-### Backup
-```bash
-cp ~/.config/btop/btop.conf ~/.config/btop/btop.conf.bak 2>/dev/null || true
-```
+**What this does:** Adds a Tokyo Night theme file to btop. Unchanged.
 
 ### Deploy
+
 ```bash
 mkdir -p ~/.config/btop/themes
 cp ~/Development/Ricing/btop/tokyo-night.theme ~/.config/btop/themes/tokyo-night.theme
 ```
 
 ### Apply inside btop
+
 ```
-ESC → Options → Color theme → select "tokyo-night" → apply
+ESC → Options → Color theme → tokyo-night → apply
 ```
 
-Or set it directly in btop's config file:
+Or set directly:
 ```bash
-# Find the color_theme line and change it:
 sed -i 's/^color_theme =.*/color_theme = "tokyo-night"/' ~/.config/btop/btop.conf
 ```
 
-Restart btop to confirm.
-
 ### Revert
+
 ```bash
 cp ~/.config/btop/btop.conf.bak ~/.config/btop/btop.conf
-# or inside btop: ESC → Options → Color theme → Default
 ```
 
 ---
 
-## Step 19 — CLion (Tokyo Night)
+## Step 22 — Neovim (LazyVim)
 
-**What this does:** Applies Tokyo Night to the CLion editor, UI chrome, and terminal.
-JetBrains IDEs have first-party Tokyo Night support via a marketplace plugin.
+**What this does:** Builds Neovim 0.10+ from source, bootstraps LazyVim,
+and sets up the Rust and C/C++ language servers, debugger, and Tokyo Night
+theme — matching the NvimTutorial config at `~/Development/NvimTutorial`.
 
-### Install the plugin
-1. Open CLion
-2. `File` → `Settings` → `Plugins` → `Marketplace`
-3. Search **"Tokyo Night"** — install the one by **enkia** (same author as the Neovim/VSCode themes)
-4. Restart CLion when prompted
+The apt `neovim` package is too old. All other runtime tools (`ripgrep`,
+`fd-find`, `fzf`, `clang`, `clangd`, `bear`) were already installed in Step 0.
+See `SOURCES.md → Neovim` for the full build reference.
 
-### Apply the theme
-`File` → `Settings` → `Appearance & Behavior` → `Appearance`  
-Theme: **Tokyo Night** (or **Tokyo Night Storm** for the slightly lighter variant)
+### 22a — Build Neovim from source
 
-### Match the editor font
-`File` → `Settings` → `Editor` → `Font`  
-- Font: **JetBrains Mono** (already installed on the system)
-- Size: 13
-- Line height: 1.4
+`cmake` and `ninja-build` were already installed in Step 0. Only one extra dep needed:
 
-### Match the terminal inside CLion
-`File` → `Settings` → `Tools` → `Terminal`  
-Shell path: `/usr/bin/fish`  
-The terminal will inherit the Tokyo Night colour scheme automatically once the
-plugin is active.
+```bash
+sudo apt install gettext
 
-### Revert
-`File` → `Settings` → `Plugins` → disable or uninstall Tokyo Night  
-Switch theme back to Darcula or IntelliJ Light.
+mkdir -p ~/build
+git clone https://github.com/neovim/neovim.git ~/build/neovim
+cd ~/build/neovim
+git checkout stable          # latest stable branch
+
+make CMAKE_BUILD_TYPE=RelWithDebInfo
+sudo make install            # installs to /usr/local/bin/nvim
+
+nvim --version   # confirm NVIM v0.10 or later
+```
+
+Build time: ~3–5 minutes.
+
+**Revert:**
+```bash
+cd ~/build/neovim && sudo make uninstall
+# or manually: sudo rm /usr/local/bin/nvim && sudo rm -rf /usr/local/share/nvim
+```
+
+### 22b — Fix fd-find path
+
+Ubuntu installs `fd-find` as `fdfind`. LazyVim's Telescope expects `fd`:
+
+```bash
+mkdir -p ~/.local/bin
+ln -sf "$(which fdfind)" ~/.local/bin/fd
+# Make sure ~/.local/bin is on your PATH (fish/bash should pick this up)
+echo $PATH | grep -o '\.local/bin' || echo 'Add ~/.local/bin to PATH'
+```
+
+### 22c — Install Node.js (for LSP servers)
+
+Some Mason language servers require Node. Ubuntu 24.04 ships Node 20 in apt —
+the simplest option, no version manager needed, and it works in fish shell:
+
+```bash
+sudo apt install nodejs npm
+node --version   # confirm v20+
+npm --version
+```
+
+**Revert:** `sudo apt remove nodejs npm`
+
+> nvm is an alternative but requires extra setup to work in fish shell.
+> The apt package is sufficient for all LSP servers in this tutorial.
+
+### 22d — Install Rust toolchain
+
+Required for `rust-analyzer` (Rust LSP) and the WebGL tutorial targets:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+rustup target add wasm32-unknown-unknown
+
+rustc --version   # rustc 1.78.0 or later
+cargo --version
+```
+
+**Revert:** `rustup self uninstall`
+
+### 22e — Install lazygit
+
+Not in apt — built from source using Go (a Go project, not C++).
+Go 1.22 is available in Ubuntu 24.04 apt and is sufficient.
+See `SOURCES.md → lazygit` for the full build reference.
+
+```bash
+sudo apt install golang-go   # Go 1.22 from Ubuntu 24.04
+
+mkdir -p ~/build
+git clone https://github.com/jesseduffield/lazygit.git ~/build/lazygit
+cd ~/build/lazygit
+git checkout $(git tag --sort=-v:refname | grep '^v' | head -1)   # latest tag
+
+go build -ldflags="-s -w" -o lazygit .
+sudo install -m 755 lazygit /usr/local/bin/
+lazygit --version
+```
+
+Build time: ~1–2 minutes.
+
+**Revert:** `sudo rm /usr/local/bin/lazygit`
+
+### 22f — Bootstrap LazyVim
+
+```bash
+# Back up any existing Neovim config
+mv ~/.config/nvim{,.bak} 2>/dev/null || true
+
+# Clone the LazyVim starter
+git clone https://github.com/LazyVim/starter ~/.config/nvim
+rm -rf ~/.config/nvim/.git
+
+# Launch Neovim — plugins install automatically
+nvim
+```
+
+Wait for the plugin installation spinner in the status bar to finish. Quit
+and reopen once done.
+
+**Revert:** `rm -rf ~/.config/nvim && mv ~/.config/nvim.bak ~/.config/nvim 2>/dev/null || true`
+
+### 22g — Enable language extras
+
+Edit `~/.config/nvim/lazyvim.json`:
+
+```json
+{
+  "extras": [
+    "lazyvim.plugins.extras.editor.neo-tree",
+    "lazyvim.plugins.extras.lang.rust",
+    "lazyvim.plugins.extras.lang.clangd",
+    "lazyvim.plugins.extras.dap.core"
+  ],
+  "install_version": 8,
+  "version": 8
+}
+```
+
+Then inside Neovim: `:Lazy sync` — installs rust-analyzer, clangd tooling,
+codelldb debugger adapter, and Treesitter parsers.
+
+### 22h — Apply Tokyo Night theme
+
+Create `~/.config/nvim/lua/plugins/theme.lua`:
+
+```lua
+return {
+  {
+    "LazyVim/LazyVim",
+    opts = { colorscheme = "tokyonight-night" },
+  },
+  {
+    "folke/tokyonight.nvim",
+    lazy = false,
+    priority = 1000,
+    opts = {
+      style = "night",
+      transparent = true,   -- blends with Alacritty's 96% opacity
+    },
+  },
+}
+```
+
+### 22i — Disable arrow keys (optional — forces hjkl habit)
+
+Create `~/.config/nvim/lua/config/keymaps.lua`:
+
+```lua
+for _, k in ipairs({ "<Up>", "<Down>", "<Left>", "<Right>" }) do
+  vim.keymap.set({ "n", "i", "v" }, k, "<Nop>", { silent = true })
+end
+```
+
+### Verify LSP is working
+
+Open any `.rs` file. After ~5 seconds:
+- `K` on a type → documentation popup
+- `gd` on a function → jump to definition
+- `:LspInfo` → shows `rust_analyzer` attached
+
+Open a `.cpp` or `.c` file with `compile_commands.json` at the project root:
+- `:LspInfo` → shows `clangd` attached
+
+Run `:Mason` to confirm `rust-analyzer`, `clangd`, `taplo`, `codelldb` are installed.
+
+### Generate compile_commands.json (C++ projects)
+
+CMake projects:
+```bash
+cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -B build .
+ln -s build/compile_commands.json .
+```
+
+Non-CMake / Make projects:
+```bash
+bear -- make   # wraps your build and records compiler calls
+```
+
+### Full Neovim revert
+
+```bash
+rm -rf ~/.config/nvim
+mv ~/.config/nvim.bak ~/.config/nvim 2>/dev/null || true
+sudo rm /usr/local/bin/nvim
+sudo rm /usr/local/bin/lazygit
+rustup self uninstall          # if you installed Rust only for this
+sudo apt remove nodejs npm    # if you installed Node only for this
+rm -rf ~/.local/share/nvim     # Mason installs, plugin data
+rm -rf ~/.local/state/nvim     # undo history, swap files
+```
 
 ---
 
-## Full revert — back to KDE Plasma
+## Step 23 — Zen Browser (Tokyo Night)
 
-If at any point you want to abandon the rice entirely:
+Unchanged from original tutorial — see `ARCHIVE_X11/SETUP_X11.md Step 12`
+for the full steps. Zen / Firefox run under XWayland automatically (no changes
+needed). The `MOZ_ENABLE_WAYLAND=1` env set in `hyprland.conf` enables native
+Wayland rendering if Zen supports it.
+
+---
+
+## Step 24 — CLion (Tokyo Night)
+
+Unchanged from original tutorial — see `ARCHIVE_X11/SETUP_X11.md Step 19`.
+CLion runs under XWayland automatically when launched from Hyprland.
+
+---
+
+## Full Revert — Back to KDE Plasma
 
 ```bash
 # Restore all backed-up configs
-cp -r ~/.config/i3.bak                         ~/.config/i3                         2>/dev/null || true
-cp -r ~/.config/alacritty.bak                  ~/.config/alacritty                  2>/dev/null || true
-cp -r ~/.config/rofi.bak                       ~/.config/rofi                       2>/dev/null || true
-cp    ~/.config/picom.conf.bak                 ~/.config/picom/picom.conf           2>/dev/null || true
-cp -r ~/.config/dunst.bak                      ~/.config/dunst                      2>/dev/null || true
-cp    ~/.config/gtk-3.0/settings.ini.bak       ~/.config/gtk-3.0/settings.ini       2>/dev/null || true
-cp    ~/.config/gtk-4.0/settings.ini.bak       ~/.config/gtk-4.0/settings.ini       2>/dev/null || true
-cp    ~/.gtkrc-2.0.bak                         ~/.gtkrc-2.0                         2>/dev/null || true
-cp    ~/.config/xsettingsd/xsettingsd.conf.bak ~/.config/xsettingsd/xsettingsd.conf 2>/dev/null || true
-cp    ~/.config/starship.toml.bak              ~/.config/starship.toml              2>/dev/null || true
-cp    ~/.config/btop/btop.conf.bak             ~/.config/btop/btop.conf             2>/dev/null || true
-cp    ~/.local/share/fish/fish_variables.bak   ~/.local/share/fish/fish_variables   2>/dev/null || true
-pkill xsettingsd 2>/dev/null || true
+cp -r ~/.config/hypr.bak         ~/.config/hypr         2>/dev/null || true
+cp -r ~/.config/waybar.bak       ~/.config/waybar        2>/dev/null || true
+cp -r ~/.config/wofi.bak         ~/.config/wofi          2>/dev/null || true
+cp -r ~/.config/swaylock.bak     ~/.config/swaylock      2>/dev/null || true
+cp -r ~/.config/dunst.bak        ~/.config/dunst         2>/dev/null || true
+cp -r ~/.config/alacritty.bak    ~/.config/alacritty     2>/dev/null || true
+cp    ~/.config/gtk-3.0/settings.ini.bak ~/.config/gtk-3.0/settings.ini 2>/dev/null || true
+cp    ~/.config/gtk-4.0/settings.ini.bak ~/.config/gtk-4.0/settings.ini 2>/dev/null || true
+cp    ~/.gtkrc-2.0.bak           ~/.gtkrc-2.0            2>/dev/null || true
+cp    ~/.config/starship.toml.bak ~/.config/starship.toml 2>/dev/null || true
+cp    ~/.config/btop/btop.conf.bak ~/.config/btop/btop.conf 2>/dev/null || true
+cp    ~/.local/share/fish/fish_variables.bak \
+      ~/.local/share/fish/fish_variables                  2>/dev/null || true
 
-# Remove theme files (won't affect KDE Plasma — it uses its own theme store)
+# Remove theme files (KDE uses its own theme store — not affected)
 rm -rf ~/.themes/Tokyonight*
 rm -rf ~/.config/Kvantum/TokyoNight*
 rm -f  ~/.config/btop/themes/tokyo-night.theme
 
-# Restore SDDM to Breeze (if Step 15 was done)
+# Restore SDDM to Breeze (if Step 18 was done)
 sudo tee /etc/sddm.conf.d/theme.conf > /dev/null <<'EOF'
 [Theme]
 Current=breeze
 EOF
 ```
 
-Then log out and select **Plasma** from the SDDM session menu.
+Log out and select **Plasma** from the SDDM session menu.
 KDE Plasma is entirely separate — switching sessions leaves it exactly as you
 left it.
 
 ---
 
-## Quick reference — i3 keybindings
+## Quick Reference — Hyprland Keybindings
 
 | Key | Action |
 |-----|--------|
 | `Super+Return` | Open terminal (alacritty) |
-| `Super+d` | Open launcher (rofi) |
-| `Super+Shift+q` | Close window |
+| `Super+Space` | Open launcher (wofi) |
+| `Super+Shift+Q` | Close window |
 | `Super+h/j/k/l` | Focus left/down/up/right |
-| `Super+Shift+h/j/k/l` | Move window |
-| `Super+1…0` | Switch workspace |
-| `Super+Shift+1…0` | Move window to workspace |
-| `Super+f` | Fullscreen toggle |
-| `Super+b` / `Super+v` | Split horizontal / vertical |
-| `Super+r` | Resize mode (then h/j/k/l) |
-| `Super+Shift+space` | Toggle floating |
-| `Super+Shift+x` | Lock screen |
-| `Super+Shift+r` | Reload i3 config |
-| `Super+Shift+e` | Exit i3 |
-| `Print` | Screenshot (saved to ~/Pictures/screenshots/) |
+| `Super+Shift+h/j/k/l` | Move window left/down/up/right |
+| `Super+1…9, 0` | Switch workspace |
+| `Super+Shift+1…9, 0` | Move window to workspace |
+| `Super+F` | Fullscreen toggle |
+| `Super+M` | Monocle (fullscreen without gaps) |
+| `Super+R` | Resize mode (hjkl/arrows, Esc to exit) |
+| `Super+Shift+Space` | Toggle floating |
+| `Super+P` | Dwindle pseudotile |
+| `Super+T` | Toggle dwindle split direction |
+| `Super+L` | Lock screen (swaylock) |
+| `Print` | Full screenshot → ~/Pictures |
+| `Super+Shift+S` | Area screenshot → ~/Pictures |
+| `Super+Shift+E` | Exit Hyprland |
+| `Super+mouse drag` | Move window |
+| `Super+right-click drag` | Resize window |
+| `Super+scroll` | Switch workspace |

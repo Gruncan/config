@@ -1,0 +1,75 @@
+/* ==========================================================================
+   wofi style — Tokyo Night Dark
+   Deploy: cp wofi/style.css ~/.config/wofi/style.css
+   ========================================================================== */
+
+/* Tokyo Night palette */
+/* bg: #1a1b26  bg-dark: #16161e  bg-hi: #292e42  */
+/* fg: #c0caf5  comment: #565f89                  */
+/* blue: #7aa2f7                                   */
+
+* {
+    font-family: "JetBrains Mono", "JetBrainsMono Nerd Font", monospace;
+    font-size: 14px;
+}
+
+window {
+    background-color: #1a1b26;
+    border: 1px solid #292e42;
+    border-radius: 10px;
+}
+
+#input {
+    background-color: #16161e;
+    color: #c0caf5;
+    border: 1px solid #292e42;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin: 10px;
+    outline: none;
+    caret-color: #7aa2f7;
+}
+
+#input:focus {
+    border-color: #7aa2f7;
+}
+
+#scroll {
+    margin: 0 6px 6px 6px;
+}
+
+#inner-box {
+    background: transparent;
+}
+
+#outer-box {
+    background: transparent;
+    padding: 4px;
+}
+
+#text {
+    color: #c0caf5;
+    padding: 0 6px;
+}
+
+#entry {
+    background-color: transparent;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 2px 4px;
+    transition: background 0.1s ease;
+}
+
+#entry:selected,
+#entry:hover {
+    background-color: #292e42;
+}
+
+#entry:selected #text {
+    color: #7aa2f7;
+}
+
+/* App icon */
+image {
+    margin-right: 8px;
+}

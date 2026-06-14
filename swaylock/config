@@ -1,0 +1,64 @@
+# =============================================================================
+# swaylock config — Tokyo Night Dark lock screen
+# Deploy: mkdir -p ~/.config/swaylock
+#         cp swaylock/config ~/.config/swaylock/config
+# Test:   swaylock
+#
+# This config works with the standard apt swaylock package.
+# Options marked [effects] below require swaylock-effects (source build,
+# see SOURCES.md) — uncomment them only if you have that installed.
+# =============================================================================
+
+# Solid Tokyo Night background
+color=1a1b26
+
+# Font
+font=JetBrains Mono
+
+# Show failed attempt count
+show-failed-attempts
+
+# [effects] Uncomment if using swaylock-effects:
+# clock
+# timestr=%H:%M
+# datestr=%a, %d %B
+# fade-in=0.2
+
+# Ring indicator
+indicator
+
+# Ring colours — Tokyo Night
+ring-color=292e42
+ring-ver-color=7aa2f7
+ring-wrong-color=f7768e
+ring-clear-color=9ece6a
+
+# Inside the ring
+inside-color=1a1b26
+inside-ver-color=1a1b26
+inside-wrong-color=1a1b26
+inside-clear-color=1a1b26
+
+# Key highlight
+key-hl-color=7aa2f7
+bs-hl-color=f7768e
+
+# Lines between ring segments (transparent — cleaner look)
+line-color=00000000
+line-ver-color=00000000
+line-wrong-color=00000000
+line-clear-color=00000000
+separator-color=00000000
+
+# Text on the ring
+text-color=c0caf5
+text-ver-color=7aa2f7
+text-wrong-color=f7768e
+text-clear-color=9ece6a
+
+# Caps lock indicator
+caps-lock-key-hl-color=e0af68
+caps-lock-bs-hl-color=e0af68
+ring-caps-lock-color=e0af68
+inside-caps-lock-color=1a1b26
+text-caps-lock-color=e0af68

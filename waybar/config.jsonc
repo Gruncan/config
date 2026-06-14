@@ -1,0 +1,109 @@
+{
+    // ==========================================================================
+    // Waybar Config — Omarchy-inspired · Tokyo Night Dark
+    // Deploy: mkdir -p ~/.config/waybar
+    //         cp waybar/config.jsonc ~/.config/waybar/config.jsonc
+    //         cp waybar/style.css    ~/.config/waybar/style.css
+    // Reload: killall waybar; waybar &
+    // ==========================================================================
+
+    "layer": "top",
+    "position": "top",
+    "height": 34,
+    "spacing": 0,
+    "margin-top": 6,
+    "margin-left": 12,
+    "margin-right": 12,
+
+    "modules-left": [
+        "hyprland/workspaces"
+    ],
+
+    "modules-center": [
+        "clock"
+    ],
+
+    "modules-right": [
+        "network",
+        "cpu",
+        "memory",
+        "pulseaudio",
+        "battery",
+        "tray"
+    ],
+
+    // ---- Modules ----
+
+    "hyprland/workspaces": {
+        "format": "{id}",
+        "on-click": "activate",
+        "sort-by-number": true,
+        "active-only": false,
+        "persistent-workspaces": {
+            "*": [1, 2, 3, 4, 5]
+        }
+    },
+
+    "clock": {
+        "format": "{:%a %d %b  %H:%M}",
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+        "format-alt": "{:%Y-%m-%d}"
+    },
+
+    "cpu": {
+        "format": " {usage}%",
+        "interval": 2,
+        "tooltip": false,
+        "states": {
+            "warning": 70,
+            "critical": 90
+        }
+    },
+
+    "memory": {
+        "format": " {used:0.1f}G",
+        "interval": 10,
+        "tooltip-format": "{used:0.1f}G / {total:0.1f}G used\n{swapUsed:0.1f}G / {swapTotal:0.1f}G swap"
+    },
+
+    "network": {
+        "format-wifi": " {essid}",
+        "format-ethernet": " {ipaddr}",
+        "format-disconnected": "⚠ No network",
+        "format-linked": " {ifname} (no IP)",
+        "tooltip-format": "{ifname}: {ipaddr}/{cidr}\nGateway: {gwaddr}\n↑ {bandwidthUpBytes}  ↓ {bandwidthDownBytes}",
+        "interval": 30,
+        "on-click": "nm-connection-editor"
+    },
+
+    "pulseaudio": {
+        "format": "{icon} {volume}%",
+        "format-muted": " muted",
+        "format-icons": {
+            "default": ["", "", ""]
+        },
+        "tooltip-format": "{desc}",
+        "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+        "on-click-right": "pavucontrol",
+        "scroll-step": 5
+    },
+
+    "battery": {
+        "states": {
+            "good": 80,
+            "warning": 30,
+            "critical": 15
+        },
+        "format": "{icon} {capacity}%",
+        "format-charging": " {capacity}%",
+        "format-plugged": " {capacity}%",
+        "format-icons": ["", "", "", "", ""],
+        "interval": 30,
+        "tooltip-format": "{timeTo}\n{power:.1f}W"
+    },
+
+    "tray": {
+        "spacing": 10,
+        "show-passive-items": true
+    }
+}

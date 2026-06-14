@@ -7,6 +7,7 @@
 [global]
     monitor     = 0
     follow      = mouse
+    layer       = overlay
 
     # Position — top-right, 20px from edge
     origin      = top-right
@@ -103,6 +104,6 @@
     urgency = critical
 
 [kde_ignored]
-    # Suppress noisy KDE system tray notifications while running i3
+    # Suppress noisy KDE system tray notifications while running Hyprland
     appname = "KDE"
     skip_display = yes

@@ -1,0 +1,155 @@
+/* ==========================================================================
+   Waybar Style — Tokyo Night Dark
+   Deploy: cp waybar/style.css ~/.config/waybar/style.css
+   ========================================================================== */
+
+/* Tokyo Night Dark palette */
+/* bg:       #1a1b26   bg-dark:  #16161e   bg-hi:   #292e42  */
+/* fg:       #c0caf5   fg-dim:   #a9b1d6   comment: #565f89  */
+/* blue:     #7aa2f7   cyan:     #7dcfff   magenta: #bb9af7  */
+/* green:    #9ece6a   orange:   #ff9e64   red:     #f7768e  */
+/* yellow:   #e0af68 */
+
+* {
+    font-family: "JetBrains Mono", "JetBrainsMono Nerd Font", monospace;
+    font-size: 13px;
+    border: none;
+    border-radius: 0;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+}
+
+window#waybar {
+    background: transparent;
+    color: #c0caf5;
+}
+
+/* Shared pill/module style */
+.modules-left,
+.modules-center,
+.modules-right {
+    background: #1a1b26;
+    border-radius: 8px;
+    border: 1px solid #292e42;
+}
+
+/* Individual module padding */
+#workspaces,
+#clock,
+#network,
+#cpu,
+#memory,
+#pulseaudio,
+#battery,
+#tray {
+    padding: 0 12px;
+    color: #c0caf5;
+}
+
+/* ---- Workspaces ---- */
+#workspaces button {
+    color: #565f89;
+    background: transparent;
+    padding: 0 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    min-width: 24px;
+}
+
+#workspaces button:hover {
+    color: #c0caf5;
+    background: #292e42;
+}
+
+#workspaces button.active {
+    color: #7aa2f7;
+    background: #292e42;
+    font-weight: bold;
+}
+
+#workspaces button.urgent {
+    color: #f7768e;
+    background: #292e4288;
+}
+
+/* ---- Clock ---- */
+#clock {
+    color: #c0caf5;
+    font-weight: 500;
+}
+
+/* ---- CPU ---- */
+#cpu {
+    color: #7dcfff;
+}
+
+#cpu.warning { color: #e0af68; }
+#cpu.critical { color: #f7768e; }
+
+/* ---- Memory ---- */
+#memory {
+    color: #bb9af7;
+}
+
+/* ---- Network ---- */
+#network {
+    color: #9ece6a;
+}
+
+#network.disconnected {
+    color: #f7768e;
+}
+
+/* ---- Audio ---- */
+#pulseaudio {
+    color: #7aa2f7;
+}
+
+#pulseaudio.muted {
+    color: #565f89;
+}
+
+/* ---- Battery ---- */
+#battery {
+    color: #9ece6a;
+}
+
+#battery.warning {
+    color: #e0af68;
+}
+
+#battery.critical {
+    color: #f7768e;
+}
+
+#battery.charging {
+    color: #9ece6a;
+}
+
+/* ---- Tray ---- */
+#tray {
+    padding: 0 8px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background-color: #292e42;
+}
+
+/* ---- Tooltips ---- */
+tooltip {
+    background: #16161e;
+    border: 1px solid #292e42;
+    border-radius: 6px;
+    color: #c0caf5;
+}
+
+tooltip label {
+    color: #c0caf5;
+    padding: 4px;
+}
