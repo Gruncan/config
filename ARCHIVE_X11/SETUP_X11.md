@@ -221,6 +221,7 @@ cp -r ~/.config/alacritty ~/.config/alacritty.bak 2>/dev/null || true
 ### Deploy
 ```bash
 mkdir -p ~/.config/alacritty
+cp ~/Development/Ricing/alacritty/alacritty-base.toml ~/.config/alacritty/
 cp ~/Development/Ricing/alacritty/alacritty.toml ~/.config/alacritty/alacritty.toml
 ```
 

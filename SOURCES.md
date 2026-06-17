@@ -5,6 +5,10 @@ is required by the next. Everything else is optional (apt alternatives noted).
 
 > The previous X11/i3 build instructions are in `ARCHIVE_X11/SOURCES_X11.md`.
 
+**Terminal look (Tokyo Night, Fish — KDE Plasma or Hyprland):** see [TERMINAL_OMARCHY.md](TERMINAL_OMARCHY.md) and [SETUP.md](SETUP.md) Step 7 (vendored [`alacritty/alacritty-base.toml`](alacritty/alacritty-base.toml) + wrapper [`alacritty.toml`](alacritty/alacritty.toml) or [`alacritty-kde.toml`](alacritty/alacritty-kde.toml)). Optional **`eza`** for Omarchy-style `ls`: [fish/README.md](fish/README.md) · Ubuntu `sudo apt install eza`.
+
+**Doc index (Plasma vs Hyprland):** [README.md](README.md).
+
 ---
 
 ## Prerequisites: GCC 14 (Ubuntu 24.04)
@@ -365,15 +369,43 @@ Better screensharing and file picker integration than the generic `-wlr` portal.
 
 **Repo:** https://github.com/hyprwm/xdg-desktop-portal-hyprland
 
+### Hypr dependencies (keep aligned with your Hyprland build)
+
+XDPH reads these from **pkg-config** (your Step 1 installs under `/usr/local`). Before building the portal, ensure these are installed and recent enough for the **Hyprland tag** you run:
+
+| Component | Step in this doc | Notes |
+|-----------|------------------|--------|
+| **hyprwayland-scanner** | 1a | Protocol codegen |
+| **hyprutils** | 1b | Linked by hyprlang / tooling |
+| **hyprlang** | 1c | Config parser; C++23 headers on current tags |
+| **hyprland-protocols** | 1d | Hyprland Wayland extensions (or subproject fallback) |
+
+You do **not** need to downgrade these for Ubuntu’s PipeWire **1.0.x** if you build XDPH with **Clang** (see below).
+
+### Ubuntu 24.04 + PipeWire 1.0.x: use Clang for XDPH
+
+Stock PipeWire **1.0.x** ships `spa/pod/dynamic.h` with initializers that **GCC** rejects under **C++20+** when the header is pulled into C++ translation units (designated-init rules). **Clang** accepts the same headers, so you can keep **C++23** (`std::format`, `std::print` via hyprlang) and distro PipeWire.
+
 ```bash
-sudo apt install libwayland-dev libpipewire-0.3-dev \
-                 qt6-wayland qt6-base-dev
+sudo apt install libwayland-dev libpipewire-0.3-dev libspa-0.2-dev \
+                 qt6-wayland qt6-base-dev clang \
+                 libsystemd-dev libsdbus-c++-dev
 
 git clone https://github.com/hyprwm/xdg-desktop-portal-hyprland.git
 cd xdg-desktop-portal-hyprland
-cmake -B build -DCMAKE_BUILD_TYPE=Release
+git checkout "$(git tag --sort=-v:refname | head -1)"   # or a fixed tag, e.g. v1.3.3
+
+cmake -B build -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_COMPILER=clang \
+      -DCMAKE_CXX_COMPILER=clang++
 sudo cmake --build build --target install
 ```
+
+**Corporate / OEM apt mirrors:** install **`libpipewire-0.3-dev`** and **`libspa-0.2-dev`** from the **same version line** as `libpipewire-0.3-0t64` (e.g. both `…ubuntu3.3~oem1`), or `apt` will refuse the `-dev` packages.
+
+**Fish shell:** bash `export` does not apply; either run the `cmake` lines inside `bash`, or prefix once: `env CMAKE_BUILD_TYPE=Release cmake …`.
+
+**If you must use GCC:** upgrade PipeWire (distro packages or source) to a release whose SPA headers are C++-clean, or expect the `spa/pod/dynamic.h` designated-init error until then.
 
 Update the `exec-once` lines in `hyprland.conf`:
 ```

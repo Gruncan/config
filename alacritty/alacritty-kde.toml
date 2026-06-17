@@ -1,0 +1,6 @@
+# KDE Plasma: copy this file to ~/.config/alacritty/alacritty.toml (see TERMINAL_OMARCHY.md).
+# Native title bar so you can drag the window; Hyprland uses alacritty.toml instead.
+import = ["~/.config/alacritty/alacritty-base.toml"]
+
+[window]
+decorations = "Full"

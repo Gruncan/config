@@ -1,0 +1,106 @@
+# Alacritty — Tokyo Night Night · shared base (no window decorations here).
+# Requires Alacritty >= 0.12 (TOML). Font: JetBrainsMono Nerd Font (SETUP Step 0c / SOURCES.md).
+# Hyprland vs KDE: use alacritty.toml (decorations None) or alacritty-kde.toml → ~/.config/alacritty/alacritty.toml.
+# Omarchy sets TERM for wider CLI compatibility (see https://github.com/basecamp/omarchy/blob/dev/config/alacritty/alacritty.toml).
+
+[env]
+TERM = "xterm-256color"
+
+[shell]
+program = "/usr/bin/fish"
+args = []
+
+[window]
+padding = { x = 10, y = 10 }
+opacity = 0.96
+dynamic_title = true
+
+[font]
+normal = { family = "JetBrainsMono Nerd Font", style = "Regular" }
+bold = { family = "JetBrainsMono Nerd Font", style = "Bold" }
+italic = { family = "JetBrainsMono Nerd Font", style = "Italic" }
+bold_italic = { family = "JetBrainsMono Nerd Font", style = "Bold Italic" }
+size = 10.0
+
+[font.offset]
+x = 0
+y = 0
+
+[cursor]
+style = { shape = "Block", blinking = "On" }
+
+[colors.primary]
+background = "#1a1b26"
+foreground = "#c0caf5"
+dim_foreground = "#545c7e"
+bright_foreground = "#c0caf5"
+
+[colors.cursor]
+cursor = "#c0caf5"
+text = "#1a1b26"
+
+[colors.vi_mode_cursor]
+cursor = "#bb9af7"
+text = "#1a1b26"
+
+[colors.search.matches]
+foreground = "CellBackground"
+background = "#3d59a1"
+
+[colors.search.focused_match]
+foreground = "CellBackground"
+background = "#7aa2f7"
+
+[colors.footer_bar]
+foreground = "#c0caf5"
+background = "#16161e"
+
+[colors.hints.start]
+foreground = "#1a1b26"
+background = "#e0af68"
+
+[colors.hints.end]
+foreground = "#1a1b26"
+background = "#7aa2f7"
+
+[colors.selection]
+text = "CellForeground"
+background = "#33467c"
+
+[colors.normal]
+black = "#15161e"
+red = "#f7768e"
+green = "#9ece6a"
+yellow = "#e0af68"
+blue = "#7aa2f7"
+magenta = "#bb9af7"
+cyan = "#7dcfff"
+white = "#a9b1d6"
+
+[colors.bright]
+black = "#414868"
+red = "#f7768e"
+green = "#9ece6a"
+yellow = "#e0af68"
+blue = "#7aa2f7"
+magenta = "#bb9af7"
+cyan = "#7dcfff"
+white = "#c0caf5"
+
+[colors.dim]
+black = "#15161e"
+red = "#f7768e"
+green = "#9ece6a"
+yellow = "#e0af68"
+blue = "#7aa2f7"
+magenta = "#bb9af7"
+cyan = "#7dcfff"
+white = "#a9b1d6"
+
+[[colors.indexed_colors]]
+index = 16
+color = "#ff9e64"
+
+[[colors.indexed_colors]]
+index = 17
+color = "#b4f9f8"

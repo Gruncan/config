@@ -15,6 +15,9 @@ set -U fish_color_quote          9ece6a      # quoted strings
 set -U fish_color_redirection    7dcfff      # >, >>, |
 set -U fish_color_end            ff9e64      # ; and &
 set -U fish_color_error          f7768e      # errors
+# ^C on cancel — Fish’s stock default is "-r" (reverse video), which looks “selected”.
+# Plain red matches errors; no background swap (closer to Bash).
+set -U fish_color_cancel         f7768e
 set -U fish_color_param          a9b1d6      # arguments
 set -U fish_color_option         a9b1d6      # flags (--foo)
 set -U fish_color_comment        565f89      # # comments

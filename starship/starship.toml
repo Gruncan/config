@@ -5,15 +5,9 @@
 #   starship preset tokyo-night -o /tmp/starship-preview.toml
 # =============================================================================
 
-# Format — single line, clean left prompt
-format = """
-$directory\
-$git_branch\
-$git_status\
-$git_state\
-$cmd_duration\
-$line_break\
-$character"""
+# Format — one line (Omarchy-style): cwd + git + duration, then prompt char (no line_break).
+# See https://github.com/basecamp/omarchy/blob/dev/config/starship.toml
+format = """$directory${custom.githead}$git_status$git_state$cmd_duration$character"""
 
 # Right prompt (optional — shows context without cluttering the left)
 right_format = """
@@ -21,10 +15,10 @@ $python\
 $nodejs\
 $rust\
 $golang\
-$java\
-$time"""
+$java"""
 
 add_newline = true
+command_timeout = 200
 
 # =============================================================================
 # Directory
@@ -33,33 +27,44 @@ add_newline = true
 style           = "bold #7aa2f7"
 read_only       = " 󰌾"
 read_only_style = "#f7768e"
-truncation_length = 3
+# Outside a git repo: long paths. Inside a git repo: repo folder + path under root (e.g. config/alacritty; branch from custom.githead).
+truncation_length = 100
 truncate_to_repo  = true
-
-[directory.substitutions]
-"~/Development" = "󰲋 dev"
+truncation_symbol = "…/"
+# Starship: $repo_root + $path = path from repo root (no …/Misc/config prefix). Omarchy used basename-only; we keep subdirs visible.
+repo_root_style = "bold #7aa2f7"
+repo_root_format = "[$repo_root]($repo_root_style)[$path]($style)[$read_only]($read_only_style) "
+format = "[$path]($style)[$read_only]($read_only_style) "
 
 # =============================================================================
-# Git
+# Git (custom ref: branch / exact tag / HEAD; status icons without counts)
 # =============================================================================
 [git_branch]
+disabled = true
+
+[custom.githead]
+description = "git branch, exact tag, or HEAD"
+command = "git symbolic-ref -q --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null || echo HEAD"
+when = "git rev-parse --is-inside-work-tree >/dev/null 2>&1"
 symbol = " "
-style  = "#bb9af7"
-format = "[$symbol$branch(:$remote_branch)]($style) "
+style = "#bb9af7"
+format = "[$symbol$output]($style) "
 
 [git_status]
 style     = "#f7768e"
-format    = "([$all_status$ahead_behind]($style) )"
-conflicted  = "="
-ahead       = "⇡${count}"
-behind      = "⇣${count}"
-diverged    = "⇕⇡${ahead_count}⇣${behind_count}"
-untracked   = "?${count}"
+# Icons only — ${count} was how many files in that state (e.g. 7 modified, 16 untracked).
+format    = "[$all_status$ahead_behind]($style) "
+conflicted  = "= "
+ahead       = "⇡ "
+behind      = "⇣ "
+diverged    = "⇕ "
+untracked   = ""
 stashed     = "󰏗 "
-modified    = "!${count}"
-staged      = "+${count}"
-renamed     = "»${count}"
-deleted     = "✘${count}"
+modified    = " "
+staged      = "+ "
+renamed     = "» "
+deleted     = "✘ "
+up_to_date  = ""
 
 [git_state]
 format = '\([$state( $progress_current/$progress_total)]($style)\) '
@@ -69,8 +74,9 @@ style  = "#e0af68"
 # Prompt character
 # =============================================================================
 [character]
+# Omarchy-style: chevron when last status was 0, ✗ when non-zero (e.g. Ctrl+C → 130).
 success_symbol = "[❯](#9ece6a)"
-error_symbol   = "[❯](#f7768e)"
+error_symbol   = "[✗](#f7768e)"
 vimcmd_symbol  = "[❮](#bb9af7)"
 
 # =============================================================================
@@ -113,13 +119,10 @@ style  = "#f7768e"
 format = "[$symbol$version]($style) "
 
 # =============================================================================
-# Time (right prompt)
+# Time — off (no clock in the right prompt)
 # =============================================================================
 [time]
-disabled  = false
-format    = "[$time]($style)"
-style     = "#565f89"
-time_format = "%H:%M"
+disabled = true
 
 # =============================================================================
 # Disabled modules (keep prompt clean)

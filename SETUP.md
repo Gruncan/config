@@ -6,10 +6,19 @@ Work through each step in order. Every step backs up the existing file before
 touching it, and every step has a one-line revert. Stop at any point — nothing
 done so far will break anything that came before.
 
+This file is the **Hyprland session** install path (second SDDM session). For
+what to do **while you still use KDE Plasma only** (terminal, doc map), see
+[README.md](README.md) and [TERMINAL_OMARCHY.md](TERMINAL_OMARCHY.md#kubuntu-on-kde-plasma-before-hyprland).
+Step **0** below is a large `apt` set aimed at building/running Hyprland; you can
+defer it until you are ready, or install a smaller set (e.g. `alacritty`,
+`unzip`, `wget`) and add the rest later.
+
 **KDE Plasma is never touched.** At any point you can log out and select
 **Plasma** in the SDDM session menu to return to your original KDE desktop.
 
 > The previous X11/i3 version of this tutorial is preserved in `ARCHIVE_X11/SETUP_X11.md`.
+
+**Terminal (Omarchy-style, Fish, Alacritty vs Ghostty/Kitty):** see [TERMINAL_OMARCHY.md](TERMINAL_OMARCHY.md).
 
 ---
 
@@ -52,7 +61,7 @@ sudo apt install \
     papirus-icon-theme fonts-jetbrains-mono libnotify-bin playerctl \
     qt5-style-kvantum qt5-style-kvantum-themes \
     capitaine-cursors \
-    ripgrep fd-find fzf unzip \
+    ripgrep fd-find fzf unzip eza \
     clang clangd bear \
     policykit-1-gnome network-manager-gnome pavucontrol \
     xwayland
@@ -65,7 +74,7 @@ for p in waybar wofi swaylock swaybg grim slurp wl-clipboard \
           xdg-desktop-portal xdg-desktop-portal-wlr \
           papirus-icon-theme fonts-jetbrains-mono libnotify-bin playerctl \
           qt5-style-kvantum capitaine-cursors \
-          ripgrep fd-find fzf clang clangd bear \
+          ripgrep fd-find fzf eza clang clangd bear \
           policykit-1-gnome network-manager-gnome pavucontrol xwayland; do
     dpkg -s "$p" &>/dev/null && echo "OK      $p" || echo "MISSING $p"
 done
@@ -545,8 +554,24 @@ rm ~/.config/wofi/style.css
 ## Step 7 — Alacritty (terminal)
 
 **What this does:** Gives alacritty Tokyo Night Dark colours, JetBrains Mono at
-12pt, subtle transparency (96%), block cursor with blink. Alacritty detects
-Wayland automatically — no config changes needed vs the X11 version.
+12pt, subtle transparency (96%), block cursor with blink, and launches **Fish**
+without requiring `chsh`. Alacritty detects Wayland automatically — no config
+changes needed vs the X11 version. **KDE Plasma** users should deploy the
+**KDE** wrapper so the window keeps a **title bar** for dragging; this step’s
+commands target the **Hyprland** pair (borderless under the compositor).
+
+Theme files in this repo:
+
+- [`alacritty/alacritty-base.toml`](alacritty/alacritty-base.toml) — colours, font, Fish, opacity (shared).
+- [`alacritty/alacritty.toml`](alacritty/alacritty.toml) — **Hyprland:** imports base, `decorations = "None"`.
+- [`alacritty/alacritty-kde.toml`](alacritty/alacritty-kde.toml) — **KDE Plasma:** imports base, `decorations = "Full"` (title bar so you can drag the window).
+
+On **KDE only**, deploy the KDE wrapper as your main config file name (see
+[TERMINAL_OMARCHY.md](TERMINAL_OMARCHY.md#kubuntu-on-kde-plasma-before-hyprland)).
+
+For upstream Omarchy’s current default terminal (often **Ghostty**), Kitty/Foot,
+Hyprland-only opacity rules, and Fish path notes, read
+[TERMINAL_OMARCHY.md](TERMINAL_OMARCHY.md).
 
 ### Backup
 
@@ -554,12 +579,18 @@ Wayland automatically — no config changes needed vs the X11 version.
 cp -r ~/.config/alacritty ~/.config/alacritty.bak 2>/dev/null || true
 ```
 
-### Deploy
+### Deploy (Hyprland session — default for this guide)
 
 ```bash
 mkdir -p ~/.config/alacritty
+# If you cloned this repo to ~/Development/Ricing (see "Before you start"):
+cp ~/Development/Ricing/alacritty/alacritty-base.toml ~/.config/alacritty/
 cp ~/Development/Ricing/alacritty/alacritty.toml ~/.config/alacritty/alacritty.toml
 ```
+
+If the repo lives elsewhere, copy both files from that checkout’s `alacritty/`
+directory. **Both** are required: `alacritty.toml` imports `alacritty-base.toml`
+by path under `~/.config/alacritty/`.
 
 ### Verify
 
@@ -568,6 +599,9 @@ Alacritty hot-reloads — open a terminal and the colours change immediately.
 If the terminal looks wrong:
 - Wrong colours → confirm `alacritty --version` is ≥ 0.12
 - Box characters instead of icons → Nerd Font not installed (see Step 0c)
+- Fish did not start → edit `[shell] program` in `alacritty-base.toml` to match
+  `command -v fish` (often `/usr/bin/fish` or `/bin/fish`)
+- Omarchy-style directory listings → install **`eza`** and deploy [fish/README.md](fish/README.md) (Step 20 in [SETUP.md](SETUP.md)); `[env] TERM` is set in the base config like [Omarchy’s Alacritty](https://github.com/basecamp/omarchy/blob/dev/config/alacritty/alacritty.toml)
 
 ### Revert
 
@@ -1202,6 +1236,32 @@ cp ~/.local/share/fish/fish_variables.bak ~/.local/share/fish/fish_variables
 exec fish
 ```
 
+### Omarchy-style listings (`eza`) and Ctrl+C on an empty line
+
+**What this does:** Matches [Omarchy’s default `ls`](https://github.com/basecamp/omarchy/blob/dev/default/bash/aliases) and [omarchy-fish](https://github.com/omacom-io/omarchy-fish): `ls` uses **`eza -lh --group-directories-first --icons=auto`** (icons and colours need a [Nerd Font](TERMINAL_OMARCHY.md#3-nerd-font-icons-in-prompt-lazygit-etc); see Step 0c). Adds **`lsa`**, **`lt`**, **`lta`**. Also fixes the quirk where **Ctrl+C on an empty line** in Fish does nothing: Fish’s reader **returns early** on an empty buffer and never prints `^C`. This snippet inserts a **zero-width space** so **`cancel-commandline`** runs Fish’s normal non-empty path (same as Bash: `^C`, newline, line kept in scrollback, new prompt). No custom `printf`/`repaint` — those fight Fish’s screen redraw and could wipe the line.
+
+**Install `eza`** (included in the Step 0 package list; otherwise):
+
+```bash
+sudo apt install eza
+```
+
+**Deploy** Fish functions + one conf.d snippet (see [fish/README.md](fish/README.md)):
+
+```bash
+REPO=~/Development/Ricing   # same path you used in "Before you start"
+mkdir -p ~/.config/fish/functions ~/.config/fish/conf.d
+cp -r "$REPO/fish/functions/." ~/.config/fish/functions/
+cp "$REPO/fish/conf.d/99-omarchy-parity.fish" ~/.config/fish/conf.d/
+exec fish
+```
+
+**Note:** If you already define **`fish_user_key_bindings`** in `~/.config/fish/config.fish`, that file loads after `conf.d` and replaces the function from `99-omarchy-parity.fish`. Merge the `bind` lines from that snippet into your own `fish_user_key_bindings`, or call `__fish_omarchy_ctrl_c` from it.
+
+**Revert:** remove `~/.config/fish/conf.d/99-omarchy-parity.fish` and the four functions under `~/.config/fish/functions/` named `ls.fish`, `lsa.fish`, `lt.fish`, `lta.fish`, then `exec fish`.
+
+**`^C` looks highlighted (reversed colours):** Fish’s default is `fish_color_cancel -r`. Re-run [`tokyo-night-colors.fish`](tokyo-night-colors.fish) (sets plain red `f7768e`), or `set -U fish_color_cancel f7768e`. The parity `conf.d` snippet also overrides a lone stock `-r` for the session.
+
 ---
 
 ## Step 21 — btop (Tokyo Night)
@@ -1374,27 +1434,43 @@ Edit `~/.config/nvim/lazyvim.json`:
 Then inside Neovim: `:Lazy sync` — installs rust-analyzer, clangd tooling,
 codelldb debugger adapter, and Treesitter parsers.
 
-### 22h — Apply Tokyo Night theme
+### 22h — Apply Tokyo Night theme (transparent over Alacritty)
 
-Create `~/.config/nvim/lua/plugins/theme.lua`:
+Neovim draws its own background unless the colorscheme sets **Normal** to
+transparent. The vendored LazyVim plugin file in this repo enables Tokyo Night
+**night** with `transparent = true` and forces `Normal` / floats to `NONE`.
 
-```lua
-return {
-  {
-    "LazyVim/LazyVim",
-    opts = { colorscheme = "tokyonight-night" },
-  },
-  {
-    "folke/tokyonight.nvim",
-    lazy = false,
-    priority = 1000,
-    opts = {
-      style = "night",
-      transparent = true,   -- blends with Alacritty's 96% opacity
-    },
-  },
-}
+**Deploy**
+
+```bash
+mkdir -p ~/.config/nvim/lua/plugins
+cp ~/Development/Ricing/nvim/lua/plugins/theme.lua ~/.config/nvim/lua/plugins/theme.lua
 ```
+
+If the repo path differs, copy from [`nvim/lua/plugins/theme.lua`](nvim/lua/plugins/theme.lua).
+
+Then restart Neovim (or `:Lazy sync` then quit and reopen).
+
+**If Enter, Tab, or Backspace act twice** (file tree toggles on one Enter, two
+newlines per Return, etc.): this is **not** LazyVim — it is Neovim’s TUI extended-key
+negotiation with the terminal (Kitty keyboard protocol). **Alacritty 0.13.x** with
+**Neovim 0.11+** is a known bad pair; upgrade Alacritty when your distro allows, or
+merge the autocommands from [`nvim/lua/config/autocmds.lua`](nvim/lua/config/autocmds.lua)
+into `~/.config/nvim/lua/config/autocmds.lua` (create the file if you do not have one
+yet; if LazyVim already created it, append the two `nvim_create_autocmd` blocks so you
+do not remove your other autocommands). See [TERMINAL_OMARCHY.md](TERMINAL_OMARCHY.md#neovim-lazyvim-transparency-over-alacritty).
+
+**If it is still opaque**
+
+- Run `:hi Normal` — you want `guibg=NONE` (or cleared). If you see a hex colour,
+  another plugin may be overriding after load; temporarily run `:hi Normal guibg=NONE`
+  to confirm transparency works in that terminal.
+- Ensure you are not using `TERM=xterm` without true colour; Alacritty should set
+  `COLORTERM=truecolor` automatically.
+- Remove or adjust any other `lua/plugins/*theme*` or colorscheme overrides that
+  set a solid `Normal` background.
+
+**Revert:** `rm ~/.config/nvim/lua/plugins/theme.lua` then `:Lazy sync`
 
 ### 22i — Disable arrow keys (optional — forces hjkl habit)
 
