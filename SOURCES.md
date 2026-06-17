@@ -7,6 +7,24 @@ is required by the next. Everything else is optional (apt alternatives noted).
 
 ---
 
+## Prerequisites: GCC 14 (Ubuntu 24.04)
+
+Ubuntu 24.04 ships GCC 13 by default. Hyprland v42 requires GCC 14. Install
+and configure it before any of the source builds below:
+
+```bash
+sudo apt install gcc-14 g++-14
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 \
+    --slave /usr/bin/g++ g++ /usr/bin/g++-14 \
+    --slave /usr/bin/gcov gcov /usr/bin/gcov-14
+
+gcc --version   # confirm gcc-14 (Ubuntu …)
+```
+
+**Revert:** `sudo update-alternatives --set gcc /usr/bin/gcc-13`
+
+---
+
 ## Step 1: Hyprland Build Chain
 
 Build these in order. Each uses the same cmake pattern:
@@ -146,8 +164,9 @@ After all dependencies above are installed:
 git clone --recursive https://github.com/hyprwm/Hyprland.git
 cd Hyprland
 
-# Pin to latest stable (check: git tag --sort=-v:refname | head -5)
-git checkout v0.48.1
+# List available tags and pick your target (v42 is the tested version for this tutorial):
+git tag --sort=-v:refname | head -10
+git checkout v42   # replace with your chosen tag
 
 make all
 sudo make install
@@ -162,7 +181,9 @@ If `make all` fails with a missing library error:
 **Verify:**
 ```bash
 Hyprland --version
-ls /usr/share/wayland-sessions/hyprland.desktop
+ls /usr/local/share/wayland-sessions/hyprland.desktop
+# Then follow SETUP.md Step 2 to symlink this into /usr/share/wayland-sessions/
+# so SDDM can find it.
 ```
 
 **Uninstall:**
@@ -236,7 +257,10 @@ Not in Ubuntu apt — same cmake build as the other hypr tools.
 **Repo:** https://github.com/hyprwm/hypridle
 
 ```bash
-sudo apt install libwayland-dev libxkbcommon-dev libsdbus-c++-dev
+# libsdbus-c++-dev may not be available on all company apt mirrors.
+# If it's missing, libsystemd-dev is the Ubuntu 24.04 fallback:
+sudo apt install libwayland-dev libxkbcommon-dev libsystemd-dev libsdbus-c++-dev 2>/dev/null || \
+sudo apt install libwayland-dev libxkbcommon-dev libsystemd-dev
 
 git clone https://github.com/hyprwm/hypridle.git
 cd hypridle

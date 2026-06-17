@@ -160,16 +160,38 @@ Run through them in this order (copy-paste the block from `SOURCES.md Step 1`):
 See `SOURCES.md → Step 1: Hyprland Build Chain` for the exact clone URLs and
 build commands for each library.
 
-### 1c — Build Hyprland itself
+### 1c — GCC version prerequisite
+
+Ubuntu 24.04 ships GCC 13. Hyprland v42+ requires GCC 14. Install it and
+set it as the default **before** building:
+
+```bash
+sudo apt install gcc-14 g++-14
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 \
+    --slave /usr/bin/g++ g++ /usr/bin/g++-14 \
+    --slave /usr/bin/gcov gcov /usr/bin/gcov-14
+
+# Verify:
+gcc --version   # should show gcc-14 (Ubuntu …)
+```
+
+**Revert (restore GCC 13 as default):**
+```bash
+sudo update-alternatives --set gcc /usr/bin/gcc-13
+```
+
+---
+
+### 1d — Build Hyprland itself
 
 ```bash
 cd ~/build/hypr
 git clone --recursive https://github.com/hyprwm/Hyprland.git
 cd Hyprland
 
-# Check out the latest stable tag (replace with current release):
-git tag --sort=-v:refname | head -5  # list recent tags
-git checkout v0.48.1                 # example — use whatever is listed above
+# List available tags and check out the one you want (v42 was tested with this tutorial):
+git tag --sort=-v:refname | head -10
+git checkout v42   # replace with your chosen tag
 
 make all
 sudo make install
@@ -178,14 +200,14 @@ sudo make install
 This installs:
 - `/usr/local/bin/Hyprland`
 - `/usr/local/bin/hyprctl`
-- `/usr/share/wayland-sessions/hyprland.desktop`
+- `/usr/local/share/wayland-sessions/hyprland.desktop`
 
 ### Verify the build
 
 ```bash
 Hyprland --version
 hyprctl version   # will fail until Hyprland is running — that's expected
-ls /usr/share/wayland-sessions/hyprland.desktop
+ls /usr/local/share/wayland-sessions/hyprland.desktop
 ```
 
 ### Revert (remove Hyprland)
@@ -203,25 +225,39 @@ sudo rm /usr/share/wayland-sessions/hyprland.desktop
 
 ## Step 2 — SDDM Session Entry
 
-Verify both sessions are available in SDDM:
+Source builds install the session file to `/usr/local/share/wayland-sessions/`.
+SDDM on Ubuntu 24.04 only reads `/usr/share/wayland-sessions/`, so a symlink is
+needed. The `Exec=` line must also use the full path because SDDM's PATH does
+not include `/usr/local/bin`.
+
+### Verify both sessions exist
 
 ```bash
 # KDE Plasma (must exist)
 ls /usr/share/xsessions/plasmax11.desktop \
    /usr/share/xsessions/plasma.desktop 2>/dev/null || echo "Check /usr/share/xsessions/"
 
-# Hyprland (added by Step 1 install)
-ls /usr/share/wayland-sessions/hyprland.desktop
+# Hyprland — source build puts the file here:
+ls /usr/local/share/wayland-sessions/hyprland.desktop
 ```
 
-If `hyprland.desktop` is missing, create it manually:
+### Symlink to where SDDM can find it
+
+```bash
+sudo mkdir -p /usr/share/wayland-sessions
+sudo ln -sf /usr/local/share/wayland-sessions/hyprland.desktop \
+            /usr/share/wayland-sessions/hyprland.desktop
+```
+
+If the file is missing entirely (e.g. older build), create it directly:
 ```bash
 sudo tee /usr/share/wayland-sessions/hyprland.desktop > /dev/null <<'EOF'
 [Desktop Entry]
 Name=Hyprland
 Comment=An intelligent dynamic tiling Wayland compositor
-Exec=Hyprland
+Exec=/usr/local/bin/Hyprland
 Type=Application
+DesktopNames=Hyprland
 EOF
 ```
 
@@ -230,6 +266,7 @@ EOF
 ```bash
 # Preview that SDDM will show both sessions:
 ls /usr/share/xsessions/ /usr/share/wayland-sessions/
+# hyprland.desktop should appear in /usr/share/wayland-sessions/
 ```
 
 Now log out: `Super+Shift+e` (from KDE) or use the KDE app menu → Leave.
@@ -238,6 +275,7 @@ At the SDDM login screen, click the session selector and confirm you see both
 is the first Hyprland login.
 
 **Revert:** Select **Plasma** in SDDM at any time. KDE is completely untouched.
+To fully remove the Hyprland session entry: `sudo rm /usr/share/wayland-sessions/hyprland.desktop`
 
 ---
 
@@ -899,23 +937,37 @@ Remove the `QT_STYLE_OVERRIDE` line from `~/.profile` if you added it.
 and drag-and-drop for apps running under Wayland. Required for browsers and
 Electron apps to share screens correctly.
 
-Hyprland sets the Wayland environment via D-Bus (already in `hyprland.conf`
-`exec-once` lines) then restarts the portal systemd user services so they pick
-up the correct `WAYLAND_DISPLAY` variable.
+**Kubuntu complication:** KDE Plasma installs `xdg-desktop-portal-kde` as a
+dependency. When Hyprland runs, both the kde and wlr backends are present —
+without guidance the wrong one gets picked for screensharing. The fix is a
+`portals.conf` file that tells the portal daemon to prefer the wlr (or hyprland)
+backend when the desktop is Hyprland.
+
+### Deploy the portals preference file
+
+```bash
+mkdir -p ~/.config/xdg-desktop-portal
+cp ~/Development/Ricing/xdg-portal/hyprland-portals.conf \
+   ~/.config/xdg-desktop-portal/hyprland-portals.conf
+```
+
+This file is read by `xdg-desktop-portal` when `XDG_CURRENT_DESKTOP=Hyprland`.
+It tries the hyprland backend first (if built from source), falls back to wlr.
+The kde backend is bypassed for screensharing.
 
 ### Verify the portal is running (from inside Hyprland)
 
 ```bash
-systemctl --user status xdg-desktop-portal xdg-desktop-portal-wlr
+systemctl --user status xdg-desktop-portal
+# Should show active (running).
+
+# Check which backend is active:
+journalctl --user -u xdg-desktop-portal -e | grep -i "using portal"
 ```
 
-Both should show `active (running)`. If either shows `failed`:
-
+If the portal shows `failed`, restart it:
 ```bash
-# Force a restart:
-systemctl --user restart xdg-desktop-portal xdg-desktop-portal-wlr
-# Check logs:
-journalctl --user -u xdg-desktop-portal-wlr -e
+systemctl --user restart xdg-desktop-portal
 ```
 
 ### Quick test (screen sharing works)
@@ -927,6 +979,7 @@ monitor picker rather than a "no screens found" error.
 
 The Hyprland project ships its own portal (`xdg-desktop-portal-hyprland`)
 with better integration for screencasting. See `SOURCES.md → xdg-desktop-portal-hyprland`.
+After building it, the `portals.conf` above will automatically prefer it.
 
 ---
 
